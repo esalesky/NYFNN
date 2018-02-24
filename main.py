@@ -12,11 +12,12 @@ from utils import use_cuda
 def main():
     print("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
-    src_lang = 'en'
-    tgt_lang = 'de'
-    data_prefix = 'data/examples/debug'
-
-    max_sent_length = 10
+    src_lang = 'cs'
+    tgt_lang = 'en'
+#    data_prefix = 'data/examples/debug'
+    data_prefix = 'data/en-cs/train.tags.en-cs'
+    
+    max_sent_length = 50
     max_num_sents   = 10000
     
     src_vocab, tgt_vocab, train_sents = input_reader(data_prefix, src_lang, tgt_lang, max_sent_length, max_num_sents)

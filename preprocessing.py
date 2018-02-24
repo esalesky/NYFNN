@@ -48,7 +48,7 @@ class Vocab:
 
 # reads parallel data where format is one sentence per line, filename prefix.lang
 # expectation is file does not have SOS/EOS symbols
-def read_corpus(data_prefix, src_lang, tgt_lang):
+def read_corpus(data_prefix, src_lang, tgt_lang, max_num_sents):
     src_file = data_prefix + "." + src_lang
     tgt_file = data_prefix + "." + tgt_lang
 
@@ -59,24 +59,32 @@ def read_corpus(data_prefix, src_lang, tgt_lang):
 
     # read file, create vocab, and maps words to idxs
     src_sents = []
+    num_src_sents = 0
     with open(src_file, 'r', encoding='utf-8') as f:
         line = f.readline().strip().split()
-        while line:
+        if line[0].startswith("<"):  #iwslt pseudo-xml
+            line = f.readline().strip().split()
+        while line and num_src_sents < max_num_sents:
             sent = [ src_vocab.map2idx(w) for w in line ]
             src_sents.append([SOS] + sent + [EOS])
+            num_src_sents+=1
             line = f.readline().strip().split()
 
     # read file, create vocab, and maps words to idxs
     tgt_sents = []
+    num_tgt_sents = 0
     with open(tgt_file, 'r', encoding='utf-8') as f:
         line = f.readline().strip().split()
-        while line:
+        if line[0].startswith("<"):  #iwslt pseudo-xml
+            line = f.readline().strip().split()        
+        while line and num_tgt_sents < max_num_sents:
             sent = [ tgt_vocab.map2idx(w) for w in line ]
             tgt_sents.append([SOS] + sent + [EOS])
+            num_tgt_sents+=1
             line = f.readline().strip().split()
 
-    if len(src_sents) != len(tgt_sents):
-        raise RuntimeError("different number of src and tgt sentences!")
+    if num_src_sents != num_tgt_sents:
+        raise RuntimeError(f"different number of src and tgt sentences!! {len(src_sents)} != {len(tgt_sents)}")
 
     src_vocab.freeze_vocab()
     src_vocab.set_unk(UNK_TOKEN)
@@ -88,9 +96,9 @@ def read_corpus(data_prefix, src_lang, tgt_lang):
 
 
 def input_reader(data_prefix, src, tgt, max_sent_length, max_num_sents):
-    src_vocab, tgt_vocab, sents = read_corpus(data_prefix, src, tgt)
+    src_vocab, tgt_vocab, sents = read_corpus(data_prefix, src, tgt, max_num_sents)
     print("Read %s sentences" % len(sents))
-    sents = filter_sents(sents, max_sent_length, max_num_sents)
+    sents = filter_sents(sents, max_sent_length)
     print("Filtered to %s sentences" % len(sents))
 
     print("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(), tgt_vocab.name, tgt_vocab.vocab_size()))
@@ -102,5 +110,5 @@ def keep_pair(p, max_sent_length):
     return len(p[0]) < max_sent_length and len(p[1]) < max_sent_length
 
 #return sents filtered by max sent length, max num sents
-def filter_sents(sents, max_sent_length, max_num_sents):
-    return [pair for pair in sents[:max_num_sents] if keep_pair(pair, max_sent_length)]
+def filter_sents(sents, max_sent_length):
+    return [pair for pair in sents if keep_pair(pair, max_sent_length)]
