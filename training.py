@@ -33,19 +33,33 @@ def train(src, tgt, model, optimizer, loss_fn, max_length):
 
 
 #todo: generation
-def generate(seq2seq, sents, src_vocab, tgt_vocab, max_length):
+def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt'):
+    """Generate sentences, and compute the average loss."""
+
+    total_loss = 0.0
+    output = []
+
     for sent in sents:
-        src_sent = sent[0]
-        tgt_sent = sent[1]
-        src_words = [src_vocab.idx2word[i] for i in src_sent]
-        tgt_words = [tgt_vocab.idx2word[i] for i in tgt_sent]
-        print(src_words)
-        predicted = seq2seq.generate(pair2var(sent)[0], max_length)
+        src_ref = sent[0]
+        tgt_ref = sent[1]
+        src_words = [src_vocab.idx2word[i] for i in src_ref]
+        tgt_words = [tgt_vocab.idx2word[i] for i in tgt_ref]
+        output.append(" ".join(src_words))
+        predicted = model.generate(pair2var(sent)[0], max_gen_length)
         predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
         print("Predicted:", predicted_words, "Truth: ", tgt_words)
 
+        for gen, ref in zip(predicted, tgt_ref):
+            total_loss += loss_fn(gen, ref) / len(sent)
 
-def train_setup(model, sents, num_epochs, learning_rate=0.01,
+    with open(output_file, 'w') as f:
+        f.write("\n".join(output))
+
+    avg_loss = total_loss / len(sents)
+    return avg_loss, total_loss
+
+
+def train_setup(model, train_sents, dev_sents, tst_sents, num_epochs, learning_rate=0.01,
                 print_every=1000, plot_every=100):
     start = time.time()
     plot_losses = []
@@ -53,7 +67,7 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
     plot_loss_total  = 0  #resets every plot_every
 
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    train_sents = [ pair2var(s) for s in sents ]
+    train_sents_vars = [ pair2var(s) for s in train_sents ]
     # Use NLLLoss
     loss_fn = nn.NLLLoss()
     use_nllloss = True
@@ -67,8 +81,8 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
         random.shuffle(sents)
         
         for iteration in range(num_batches):
-            src_sent = train_sents[iteration][0]
-            tgt_sent = train_sents[iteration][1]
+            src_sent = train_sents_vars[iteration][0]
+            tgt_sent = train_sents_vars[iteration][1]
 
             batch_length = src_sent.size()[0]  #size of longest src sent in batch
             loss = train(src_sent, tgt_sent, model, optimizer, loss_fn, max_length=batch_length)
@@ -97,25 +111,28 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
                     plot_perplexity_avg = perplexity(plot_loss_avg)
                     plot_perplexities.append(plot_perplexity_avg)
 
-        # Save the model
+        # end of epoch
+        # save the model
         if use_nllloss:
             model_name = "model_e{0}_perp{1:.3f}".format(ep, print_perplexity_avg)
         else:
             model_name = "model_e{0}_loss{1:.3f}".format(ep, print_perplexity_avg)
         model.save("{}{}.pkl".format(MODEL_PATH, model_name))
-    
+        # generate output
+        avg_loss, total_loss = generate(model, dev_sents, src_vocab, tgt_vocab, max_sent_length, "dev_output.txt")
+        dev_ppl = perplexity(avg_loss)
+        print("-"*20+"\n")
+        print("Epoch %d: dev ppl, %f. avg loss, %f. total loss, %f" % dev_ppl, avg_loss, total_loss)
+        print("-"*20+"\n")
 
-#    #todo: generate translations for test sentences here
-#    sentences = []
-#    for sent_id, sent in enumerate(test_sents):
-#        translated_sent = generate(sent[0])
-#        sentences.append(translated_sent)
-#    for sent in sentences:
-#        print(sent)
-#    with open('output.txt', 'w', encoding='utf-8') as f:
-#        f.write('\n'.join(sentences)
+    # end of training
+    avg_loss, total_loss = generate(model, test_sents, src_vocab, tgt_vocab, max_sent_length, 'tst_output.txt')
+    tst_ppl = perplexity(avg_loss)
+    print("-"*20+"\n")
+    print("Epoch %d: tst_ppl, %f. avg loss, %f. total loss, %f" % tst_ppl, avg_loss, total_loss)
+    print("-"*20+"\n")
 
-    #todo: evaluate test ppl, bleu
+    #todo: evaluate bleu
 
     save_plot(plot_losses, 'loss', plot_every)
     save_plot(plot_perplexities, 'perplexity', plot_every)

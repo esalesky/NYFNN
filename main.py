@@ -44,8 +44,7 @@ def main(args):
 
         model = EncDec(enc, dec)
 
-    train_setup(model, train_sents, num_epochs=200, print_every=5, plot_every=5)
-    generate(model, train_sents, src_vocab, tgt_vocab, max_sent_length)
+    train_setup(model, train_sents, dev_sents, tst_sents, num_epochs=200, print_every=5, plot_every=5)
 
 
 if __name__ == "__main__":
