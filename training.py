@@ -17,7 +17,7 @@ def train(src, tgt, model, optimizer, loss_fn, max_length):
     loss = 0.0
     tgt_length = tgt.size()[0]
 
-    decoder_output = model(src, tgt, max_length)
+    decoder_output = model(src, tgt)
     
     for gen, ref in zip(decoder_output, tgt):
         # print("Gen: ", gen, "Ref: ", ref)
@@ -37,11 +37,11 @@ def generate(seq2seq, sents, src_vocab, tgt_vocab, max_length):
     for sent in sents:
         src_sent = sent[0]
         tgt_sent = sent[1]
-        src_words = [src_vocab.index2word[i] for i in src_sent]
-        tgt_words = [tgt_vocab.index2word[i] for i in tgt_sent]
+        src_words = [src_vocab.idx2word[i] for i in src_sent]
+        tgt_words = [tgt_vocab.idx2word[i] for i in tgt_sent]
         print(src_words)
         predicted = seq2seq.generate(pair2var(sent)[0], max_length)
-        predicted_words = [tgt_vocab.index2word[i] for i in predicted]
+        predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
         print("Predicted:", predicted_words, "Truth: ", tgt_words)
 
 

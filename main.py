@@ -13,10 +13,10 @@ from utils import use_cuda, MODEL_PATH
 def main(args):
     print("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
-    src_lang = 'cs'
+    src_lang = 'de' # cs
     tgt_lang = 'en'
-    # data_prefix = 'data/examples/debug'
-    data_prefix = 'data/en-cs/train.tags.en-cs'
+    data_prefix = 'data/examples/debug'
+    # data_prefix = 'data/en-cs/train.tags.en-cs'
     
     max_sent_length = 50
     max_num_sents   = 100
@@ -40,7 +40,7 @@ def main(args):
 
         model = EncDec(enc, dec)
 
-    train_setup(model, train_sents, num_epochs=30, print_every=5, plot_every=5)
+    train_setup(model, train_sents, num_epochs=200, print_every=5, plot_every=5)
     generate(model, train_sents, src_vocab, tgt_vocab, max_sent_length)
 
 
