@@ -7,7 +7,7 @@ from torch import optim
 from torch.autograd import Variable
 
 #local imports
-from utils import time_elapsed, save_plot, use_cuda, pair2var
+from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity
 from preprocessing import SOS, EOS
 
 
@@ -27,6 +27,7 @@ def train(src, tgt, model, optimizer, loss_fn, max_length):
     loss.backward()
     optimizer.step()
 
+    # Normalize loss by target length
     return loss.data[0] / tgt_length
 
 
@@ -43,7 +44,10 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
 
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
     train_sents = [ pair2var(s) for s in sents ]
+    # Use NLLLoss
     loss_fn = nn.NLLLoss()
+    use_nllloss = True
+    plot_perplexities = []
 
     num_batches = len(sents)  #todo: currently batch_size=1 every sentence is a batch
 
@@ -64,16 +68,25 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
             #todo: evaluate function. every X iterations here calculate dev ppl, bleu every epoch at least
             
             # log
-            if iteration % print_every == 0 and iteration > 0:
+            if (iteration + 1) % print_every == 0:
                 print_loss_avg = print_loss_total / print_every
                 print_loss_total = 0
-                print('iter %d / %d: %s  %.4f' % (iteration, num_batches, time_elapsed(start, iteration / num_batches), print_loss_avg))
-    
+                print('\tIter: {} / {}'.format(iteration + 1, num_batches))
+                perc_through_training = (ep + iteration / num_batches) / num_epochs
+                print('\t' + time_elapsed(start, perc_through_training))
+                print('\t\tLoss: {0:.4f}'.format(print_loss_avg))
+                if use_nllloss:
+                    print_perplexity_avg = perplexity(print_loss_avg)
+                    print('\t\tPerplexity: {0:.4f}'.format(print_perplexity_avg))
+
             # append losses for plot
-            if iteration % plot_every == 0 and iteration > 0:
+            if (iteration + 1) % plot_every == 0:
                 plot_loss_avg = plot_loss_total / plot_every
                 plot_losses.append(plot_loss_avg)
                 plot_loss_total = 0
+                if use_nllloss:
+                    plot_perplexity_avg = perplexity(plot_loss_avg)
+                    plot_perplexities.append(plot_perplexity_avg)
     
 
 #    #todo: generate translations for test sentences here
@@ -88,4 +101,5 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
 
     #todo: evaluate test ppl, bleu
 
-    save_plot(plot_losses)
+    save_plot(plot_losses, 'loss', plot_every)
+    save_plot(plot_perplexities, 'perplexity', plot_every)

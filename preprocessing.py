@@ -1,6 +1,6 @@
 """read data, create vocab, and preprocess"""
 import unicodedata
-import regex as re
+import re
 
 SOS = 0
 EOS = 1
@@ -75,7 +75,8 @@ def read_corpus(data_prefix, src_lang, tgt_lang):
             tgt_sents.append([SOS] + sent + [EOS])
             line = f.readline().strip().split()
 
-    if len(src_sents) != len(tgt_sents): raise RuntimeError(f"different number of src and tgt sentences!! {len(src_sents)} != {len(tgt_sents)}")
+    if len(src_sents) != len(tgt_sents):
+        raise RuntimeError("different number of src and tgt sentences!")
 
     src_vocab.freeze_vocab()
     src_vocab.set_unk(UNK_TOKEN)

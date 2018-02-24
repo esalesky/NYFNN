@@ -36,7 +36,7 @@ def main():
 
     model = EncDec(enc, dec)
 
-    train_setup(model, train_sents, num_epochs=30, print_every=1)
+    train_setup(model, train_sents, num_epochs=30, print_every=5, plot_every=5)
 
 #    model.save('model.pkl') #todo: move to train_setup? save every epoch?
 

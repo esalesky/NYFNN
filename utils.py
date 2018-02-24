@@ -9,6 +9,7 @@ import torch
 from torch.autograd import Variable
 
 use_cuda = False #torch.cuda.is_available()
+output_path = 'output/'
 
 
 def pair2var(sent_pair):
@@ -34,12 +35,24 @@ def time_elapsed(start, percent):
     return '%s (est. remaining: %s)' % (min_sec(s), min_sec(rs))
 
 
-def save_plot(points):
+def save_plot(points, name, freq):
     plt.figure()
     fig, ax = plt.subplots()
     # puts ticks at regular intervals
-    loc = ticker.MultipleLocator(base=0.2)
+    loc = ticker.MultipleLocator(base=1.0)
     ax.yaxis.set_major_locator(loc)
-    plt.plot(points)
-    plt.savefig('loss_plot.jpg')
+    x_vals = np.arange(0, freq*len(points), freq)
+    plt.plot(x_vals, points)
+    plt.xlabel('Iteration')
+    plt.ylabel(name.title())
+    plt.title(name.title())
+    plt.savefig('{}{}.jpg'.format(output_path, name))
 
+
+def perplexity(loss):
+    """Prints the perplexity given the NLLLoss."""
+    max_loss = 100
+    if loss > max_loss:
+        return math.exp(max_loss)
+    else:
+        return math.exp(loss)
