@@ -32,8 +32,10 @@ class RNNEncoder(nn.Module):
 
     def init_hidden(self):
         #dimensions: num_layers, minibatch_size, hidden_dim
-        result = (Variable(torch.zeros(1, 1, self.hidden_size)),
-                           Variable(torch.zeros(1, 1, self.hidden_size)))
+        # LSTM needs one variable, GRU needs two - defaults take care of it
+        # result = (Variable(torch.zeros(1, 1, self.hidden_size)),
+        #                    Variable(torch.zeros(1, 1, self.hidden_size)))
+        result = None
         if use_cuda:
             return result[0].cuda(), result[1].cuda()
         else:
@@ -59,9 +61,30 @@ class RNNDecoder(nn.Module):
         self.softmax = nn.LogSoftmax(dim=1)  #dim corresponding to vocab
         self.hidden = self.init_hidden()
 
-    # Expects to decode one word at a time
-    def forward(self, tgt):
-        # Map to embeddings
+    # Generates entire sequence, up to tgt_len, conditioned on the initial hidden state
+    def forward(self, init_hidden, tgt_len, generate=False):
+        self.hidden = init_hidden
+        decoder_input = Variable(torch.LongTensor([[SOS]]))
+        decoder_input = decoder_input.cuda() if use_cuda else decoder_input
+        outputs = []
+        for _ in range(tgt_len):
+            decoder_output = self.__forward_one_word(decoder_input)
+            _, top_idx = decoder_output.data.topk(1)
+            # Recover the value of the top index and wrap in a new variable to break backprop chain
+            word_idx = top_idx[0][0]
+            decoder_input = Variable(torch.LongTensor([[word_idx]]))
+            decoder_input = decoder_input.cuda() if use_cuda else decoder_input
+            if generate:
+                outputs.append(word_idx)
+            else:
+                outputs.append(decoder_output)
+            if word_idx == EOS:
+                break
+        return outputs
+
+    # Passes a single word through the decoder network
+    def __forward_one_word(self, tgt):
+        # Map to embeddings - dims are (seq length, batch size, emb size)
         output = self.embedding(tgt).view(1, 1, -1)
         # Non-linear activation over embeddings
         output = F.relu(output)
@@ -94,79 +117,18 @@ class EncDec(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    # #src,tgt currently single sentences
-    def forward_liz(self, src, tgt, batch_len):
-        self.encoder.hidden = self.encoder.init_hidden()
-        encoder_output = Variable(torch.zeros(batch_len, self.encoder.hidden_size))
-        encoder_output = self.encoder(src)
-        self.decoder.hidden = self.encoder.hidden
-        output = self.decoder(tgt)
-        # print(output)
-        return output
-
     def forward(self, src, tgt):
         return self._forward(src, tgt.shape[0])
 
     def generate(self, src, max_length):
         return self._forward(src, max_length, generate=True)
 
-    #src,tgt currently single sentences
+    # src,tgt currently single sentences
     def _forward(self, src, tgt_len, generate=False):
         self.encoder.hidden = self.encoder.init_hidden()
         self.encoder(src)
-        decoder_input = Variable(torch.LongTensor([[SOS]]))
-        decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-        self.decoder.hidden = self.encoder.hidden
-        # using prediction as input to next time step
-        decoder_outputs = []
-        for _ in range(tgt_len):
-            decoder_output = self.decoder(decoder_input)
-
-            _, topIndex= decoder_output.data.topk(1)
-            #Recover the value of the top index and wrap in a new variable to break backprop chain
-            wordIndex = topIndex[0][0]
-
-            decoder_input = Variable(torch.LongTensor([[wordIndex]]))
-            decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-            if generate:
-                decoder_outputs.append(wordIndex)
-            else:
-                decoder_outputs.append(decoder_output)
-            if wordIndex == EOS:
-                break
+        decoder_outputs = self.decoder(self.encoder.hidden, tgt_len, generate=generate)
         return decoder_outputs
-
-    # def generate(self, src, max_length):
-    #     # print(self.encoder.hidden)
-    #     self.encoder.hidden = self.encoder.init_hidden()
-    #     #Forward pass through the encoder
-    #     # print("Hidden before", self.encoder.hidden)
-    #     self.encoder(src)
-    #     # print("Hidden after", self.encoder.hidden)
-    #     decoder_input = Variable(torch.LongTensor([[SOS]]))
-    #     decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-    #     self.decoder.hidden = self.encoder.hidden
-    #     # print("Final encoder state", self.decoder.hidden)
-    #     # using prediction as input to next time step
-    #     decoder_outputs = []
-    #     for di in range(max_length):
-    #         decoder_output, decoder_hidden = self.decoder(decoder_input)
-    #         # print("Decoder hidden: ", self.decoder.hidden)
-    #         # print(decoder_output)
-    #         topProb, topIndex= decoder_output.data.topk(1)
-    #         # print("Top probability: %f, Top Index: %d" % (topProb, topIndex))
-    #         # print("Shape", topIndex.shape)
-    #
-    #
-    #         #todo: Switch to something like beam decoding, rather than greedy
-    #         wordIndex = topIndex[0][0]
-    #         decoder_input = Variable(torch.LongTensor([[wordIndex]]))
-    #         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-    #         # decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-    #         decoder_outputs.append(wordIndex)
-    #         if wordIndex == EOS:
-    #             break
-    #     return decoder_outputs
 
     def save(self, fname):
         """Save the model to a pickle file."""
