@@ -40,8 +40,8 @@ def save_plot(points, name, freq):
     plt.figure()
     fig, ax = plt.subplots()
     # puts ticks at regular intervals
-    loc = ticker.MultipleLocator(base=1.0)
-    ax.yaxis.set_major_locator(loc)
+    # loc = ticker.MultipleLocator(base=10.0)
+    # ax.yaxis.set_major_locator(loc)
     x_vals = np.arange(0, freq*len(points), freq)
     plt.plot(x_vals, points)
     plt.xlabel('Iteration')
