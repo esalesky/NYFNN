@@ -13,15 +13,19 @@ from utils import use_cuda, MODEL_PATH
 def main(args):
     print("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
-    src_lang = 'de' # cs
+    src_lang = 'cs'
     tgt_lang = 'en'
-    data_prefix = 'data/examples/debug'
-    # data_prefix = 'data/en-cs/train.tags.en-cs'
+#    train_prefix = 'data/examples/debug'
+    train_prefix = 'data/en-cs/train.tags.en-cs'
+    dev_prefix   = 'data/en-cs/IWSLT16.TED.tst2012.en-cs'
+    tst_prefix   = 'data/en-cs/IWSLT16.TED.tst2013.en-cs'
     
     max_sent_length = 50
-    max_num_sents   = 100
+    max_num_sents   = 10000
     
-    src_vocab, tgt_vocab, train_sents = input_reader(data_prefix, src_lang, tgt_lang, max_sent_length, max_num_sents)
+    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length)
+    src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.xml')
+    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.xml')
 
     hidden_size = 64
     input_size  = src_vocab.vocab_size()

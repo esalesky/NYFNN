@@ -1,6 +1,6 @@
 """read data, create vocab, and preprocess"""
 import unicodedata
-import re
+import regex as re
 
 SOS = 0
 EOS = 1
@@ -48,12 +48,14 @@ class Vocab:
 
 # reads parallel data where format is one sentence per line, filename prefix.lang
 # expectation is file does not have SOS/EOS symbols
-def read_corpus(data_prefix, src_lang, tgt_lang, max_num_sents):
-    src_file = data_prefix + "." + src_lang
-    tgt_file = data_prefix + "." + tgt_lang
+def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src_vocab, tgt_vocab):
+    src_file = file_prefix + "." + src_lang + file_suffix
+    tgt_file = file_prefix + "." + tgt_lang + file_suffix
 
-    src_vocab = Vocab(src_lang)
-    tgt_vocab = Vocab(tgt_lang)
+    if src_vocab is None:
+        src_vocab = Vocab(src_lang)
+    if tgt_vocab is None:
+        tgt_vocab = Vocab(tgt_lang)
     
     print("Reading files...")
 
@@ -61,30 +63,38 @@ def read_corpus(data_prefix, src_lang, tgt_lang, max_num_sents):
     src_sents = []
     num_src_sents = 0
     with open(src_file, 'r', encoding='utf-8') as f:
-        line = f.readline().strip().split()
-        if line[0].startswith("<"):  #iwslt pseudo-xml
-            line = f.readline().strip().split()
+        line = f.readline()
+        if line.startswith("<"):  #iwslt pseudo-xml
+            if not line.startswith("<seg id"):
+                line = f.readline()
+            else:
+                line = re.sub('<[^>]*>', '', line)
         while line and num_src_sents < max_num_sents:
-            sent = [ src_vocab.map2idx(w) for w in line ]
+            tokens = line.strip().split()
+            sent = [ src_vocab.map2idx(w) for w in tokens ]
             src_sents.append([SOS] + sent + [EOS])
             num_src_sents+=1
-            line = f.readline().strip().split()
+            line = f.readline()
 
     # read file, create vocab, and maps words to idxs
     tgt_sents = []
     num_tgt_sents = 0
     with open(tgt_file, 'r', encoding='utf-8') as f:
-        line = f.readline().strip().split()
-        if line[0].startswith("<"):  #iwslt pseudo-xml
-            line = f.readline().strip().split()        
+        line = f.readline()
+        if line.startswith("<"):  #iwslt pseudo-xml
+            if not line.startswith("<seg id"):
+                line = f.readline()
+            else:
+                line = re.sub('<[^>]*>', '', line)
         while line and num_tgt_sents < max_num_sents:
-            sent = [ tgt_vocab.map2idx(w) for w in line ]
+            tokens = line.strip().split()
+            sent = [ tgt_vocab.map2idx(w) for w in tokens ]
             tgt_sents.append([SOS] + sent + [EOS])
             num_tgt_sents+=1
-            line = f.readline().strip().split()
+            line = f.readline()
 
     if num_src_sents != num_tgt_sents:
-        raise RuntimeError("different number of src and tgt sentences!! {len(src_sents)} != {len(tgt_sents)}")
+        raise RuntimeError("different number of src and tgt sentences!! {num_src_sents} != {num_tgt_sents}")
 
     src_vocab.freeze_vocab()
     src_vocab.set_unk(UNK_TOKEN)
@@ -95,13 +105,14 @@ def read_corpus(data_prefix, src_lang, tgt_lang, max_num_sents):
     return src_vocab, tgt_vocab, list(zip(src_sents, tgt_sents))
 
 
-def input_reader(data_prefix, src, tgt, max_sent_length, max_num_sents):
-    src_vocab, tgt_vocab, sents = read_corpus(data_prefix, src, tgt, max_num_sents)
+def input_reader(file_prefix, src, tgt, max_num_sents,
+                 max_sent_length=100, src_vocab=None, tgt_vocab=None, file_suffix=''):
+    src_vocab, tgt_vocab, sents = read_corpus(file_prefix, file_suffix, src, tgt, max_num_sents, src_vocab, tgt_vocab)
     print("Read %s sentences" % len(sents))
     sents = filter_sents(sents, max_sent_length)
     print("Filtered to %s sentences" % len(sents))
-
-    print("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(), tgt_vocab.name, tgt_vocab.vocab_size()))
+    if src_vocab is None:
+        print("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(), tgt_vocab.name, tgt_vocab.vocab_size()))
     return src_vocab, tgt_vocab, sents
 
 

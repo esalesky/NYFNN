@@ -81,13 +81,12 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
             if (iteration + 1) % print_every == 0:
                 print_loss_avg = print_loss_total / print_every
                 print_loss_total = 0
-                print('\tIter: {} / {}'.format(iteration + 1, num_batches))
                 perc_through_training = (ep + iteration / num_batches) / num_epochs
-                print('\t' + time_elapsed(start, perc_through_training))
-                print('\t\tLoss: {0:.4f}'.format(print_loss_avg))
+                print('Iter: {} / {}.  {}'.format(iteration + 1, num_batches, time_elapsed(start, perc_through_training)))
+                print('\tLoss: {0:.4f}'.format(print_loss_avg))
                 if use_nllloss:
                     print_perplexity_avg = perplexity(print_loss_avg)
-                    print('\t\tPerplexity: {0:.4f}'.format(print_perplexity_avg))
+                    print('\tPerplexity: {0:.4f}'.format(print_perplexity_avg))
 
             # append losses for plot
             if (iteration + 1) % plot_every == 0:
