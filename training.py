@@ -52,7 +52,7 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
         print("Epoch %d:" % ep)
         random.shuffle(sents)
         
-        for iteration in range(len(sents)):
+        for iteration in range(num_batches):
             src_sent = train_sents[iteration][0]
             tgt_sent = train_sents[iteration][1]
 

@@ -20,6 +20,7 @@ class RNNEncoder(nn.Module):
         self.vocab_size  = vocab_size  #source vocab size
         self.hidden_size = hidden_size
         self.embedding   = nn.Embedding(vocab_size, embed_size)  #currently embed_size = hidden_size
+        self.num_layers  = num_layers
         self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #requires embed_size = hidden_size
         self.hidden = self.init_hidden()
 
@@ -31,7 +32,7 @@ class RNNEncoder(nn.Module):
 
     def init_hidden(self):
         #dimensions: num_layers, minibatch_size, hidden_dim
-        result = Variable(torch.zeros(1, 1, self.hidden_size))
+        result = Variable(torch.zeros(self.num_layers, 1, self.hidden_size))
         if use_cuda:
             self.hidden = result.cuda()
         else:
@@ -50,6 +51,7 @@ class RNNDecoder(nn.Module):
         self.vocab_size = vocab_size  #target vocab size
         self.hidden_size = hidden_size
         self.embedding   = nn.Embedding(vocab_size, embed_size)
+        self.num_layers  = num_layers
         self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #requires embed_size = hidden_size
         self.out = nn.Linear(hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
@@ -66,7 +68,7 @@ class RNNDecoder(nn.Module):
 
     def init_hidden(self):
         #dimensions: num_layers, minibatch_size, hidden_dim
-        result = Variable(torch.zeros(1, 1, self.hidden_size))
+        result = Variable(torch.zeros(self.num_layers, 1, self.hidden_size))
         if use_cuda:
             return result.cuda()
         else:
