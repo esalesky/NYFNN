@@ -29,7 +29,6 @@ def main(args):
 
     # Initialize our model
     if args.model is not None:
-        print(args.model)
         model = pickle.load(open(args.model, 'rb'))
     else:
         enc = RNNEncoder(vocab_size=input_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
