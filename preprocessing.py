@@ -84,7 +84,7 @@ def read_corpus(data_prefix, src_lang, tgt_lang, max_num_sents):
             line = f.readline().strip().split()
 
     if num_src_sents != num_tgt_sents:
-        raise RuntimeError(f"different number of src and tgt sentences!! {len(src_sents)} != {len(tgt_sents)}")
+        raise RuntimeError("different number of src and tgt sentences!! {len(src_sents)} != {len(tgt_sents)}")
 
     src_vocab.freeze_vocab()
     src_vocab.set_unk(UNK_TOKEN)

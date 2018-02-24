@@ -99,5 +99,6 @@ class EncDec(nn.Module):
 
     def save(self, fname):
         """Save the model to a pickle file."""
+        print("Saving at: {}".format(fname))
         with open(fname, 'wb') as pickle_file:
             pickle.dump(self, pickle_file)

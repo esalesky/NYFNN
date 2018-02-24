@@ -7,7 +7,7 @@ from torch import optim
 from torch.autograd import Variable
 
 #local imports
-from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity
+from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH
 from preprocessing import SOS, EOS
 
 
@@ -87,6 +87,13 @@ def train_setup(model, sents, num_epochs, learning_rate=0.01,
                 if use_nllloss:
                     plot_perplexity_avg = perplexity(plot_loss_avg)
                     plot_perplexities.append(plot_perplexity_avg)
+
+        # Save the model
+        if use_nllloss:
+            model_name = "model_e{0}_perp{1:.3f}".format(ep, print_perplexity_avg)
+        else:
+            model_name = "model_e{0}_loss{1:.3f}".format(ep, print_perplexity_avg)
+        model.save("{}{}.pkl".format(MODEL_PATH, model_name))
     
 
 #    #todo: generate translations for test sentences here

@@ -9,7 +9,8 @@ import torch
 from torch.autograd import Variable
 
 use_cuda = False #torch.cuda.is_available()
-output_path = 'output/'
+OUTPUT_PATH = 'output/'
+MODEL_PATH = 'models/'
 
 
 def pair2var(sent_pair):
@@ -46,7 +47,7 @@ def save_plot(points, name, freq):
     plt.xlabel('Iteration')
     plt.ylabel(name.title())
     plt.title(name.title())
-    plt.savefig('{}{}.jpg'.format(output_path, name))
+    plt.savefig('{}{}.jpg'.format(OUTPUT_PATH, name))
 
 
 def perplexity(loss):
