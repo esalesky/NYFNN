@@ -23,17 +23,18 @@ def main(args):
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
 #    train_prefix = 'data/examples/debug'
     
-    max_num_sents   = 250000  #high enough to get all sents
-    max_sent_length = 50
+    max_num_sents   = 60000  #high enough to get all sents
+    max_sent_length = 30
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
+    model_every = 10000
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.xml')
     src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.xml')
 
-    hidden_size = 256
+    hidden_size = 128
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()
 
@@ -51,7 +52,7 @@ def main(args):
         model = EncDec(enc, dec)
 
     train_setup(model, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
-                num_epochs=num_epochs, print_every=print_every, plot_every=plot_every)
+                num_epochs=num_epochs, print_every=print_every, plot_every=plot_every, model_every=model_every)
 
 
 if __name__ == "__main__":
