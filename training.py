@@ -45,11 +45,10 @@ def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, loss_fn, output
         sent_var = pair2var(sent)
         src_words = [src_vocab.idx2word[i] for i in src_ref]
         tgt_words = [tgt_vocab.idx2word[i] for i in tgt_ref]
-        output.append(" ".join(src_words))
         scores, predicted = model.generate(sent_var[0], max_gen_length)
         predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
 #        print("Predicted:", predicted_words, "  Truth: ", tgt_words)
-
+        output.append(" ".join(predicted_words))
         for gen, ref in zip(scores, sent_var[1]):
             loss = loss_fn(gen, ref)
             total_loss += loss.data[0] / len(tgt_ref)
