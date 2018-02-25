@@ -63,12 +63,11 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
     src_sents = []
     num_src_sents = 0
     with open(src_file, 'r', encoding='utf-8') as f:
-        line = f.readline()
+        line = f.readline().strip()
         if line.startswith("<"):  #iwslt pseudo-xml
-            if not line.startswith("<seg id"):
-                line = f.readline()
-            else:
-                line = re.sub('<[^>]*>', '', line)
+            while line.startswith("<") and not line.startswith("<seg id") and line:
+                line = f.readline().strip()
+            line = re.sub('<[^>]*>', '', line)
         while line and num_src_sents < max_num_sents:
             tokens = line.strip().split()
             sent = [ src_vocab.map2idx(w) for w in tokens ]
@@ -80,12 +79,11 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
     tgt_sents = []
     num_tgt_sents = 0
     with open(tgt_file, 'r', encoding='utf-8') as f:
-        line = f.readline()
+        line = f.readline().strip()
         if line.startswith("<"):  #iwslt pseudo-xml
-            if not line.startswith("<seg id"):
-                line = f.readline()
-            else:
-                line = re.sub('<[^>]*>', '', line)
+            while line.startswith("<") and not line.startswith("<seg id") and line:
+                line = f.readline().strip()
+            line = re.sub('<[^>]*>', '', line)
         while line and num_tgt_sents < max_num_sents:
             tokens = line.strip().split()
             sent = [ tgt_vocab.map2idx(w) for w in tokens ]

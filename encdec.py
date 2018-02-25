@@ -67,6 +67,7 @@ class RNNDecoder(nn.Module):
         decoder_input = Variable(torch.LongTensor([[SOS]]))
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         outputs = []
+        words = []
         for _ in range(tgt_len):
             decoder_output = self.__forward_one_word(decoder_input)
             _, top_idx = decoder_output.data.topk(1)
@@ -75,12 +76,11 @@ class RNNDecoder(nn.Module):
             decoder_input = Variable(torch.LongTensor([[word_idx]]))
             decoder_input = decoder_input.cuda() if use_cuda else decoder_input
             if generate:
-                outputs.append(word_idx)
-            else:
-                outputs.append(decoder_output)
+                words.append(word_idx)
+            outputs.append(decoder_output)
             if word_idx == EOS:
                 break
-        return outputs
+        return outputs, words
 
     # Passes a single word through the decoder network
     def __forward_one_word(self, tgt):
@@ -127,8 +127,8 @@ class EncDec(nn.Module):
     def _forward(self, src, tgt_len, generate=False):
         self.encoder.hidden = self.encoder.init_hidden()
         self.encoder(src)
-        decoder_outputs = self.decoder(self.encoder.hidden, tgt_len, generate=generate)
-        return decoder_outputs
+        decoder_outputs, words = self.decoder(self.encoder.hidden, tgt_len, generate=generate)
+        return decoder_outputs, words
 
     def save(self, fname):
         """Save the model to a pickle file."""

@@ -22,18 +22,20 @@ def pair2var(sent_pair):
         return (src_variable, tgt_variable)
 
 
-def min_sec(s):
-    m = math.floor(s / 60)
+def format_time(s):
+    h = math.floor(s / 3600)
+    s -= h * 3600
+    m = math.floor(s / 60) 
     s -= m * 60
-    return '%dm %ds' % (m, s)
+    return '%dh %dm %ds' % (h, m, s)
 
 
-def time_elapsed(start, percent):
+def time_elapsed(start, percent):  #todo: make this realistic plz
     now = time.time()
     s = now - start
     es = s / (percent)
     rs = es - s
-    return '%s (est. remaining: %s)' % (min_sec(s), min_sec(rs))
+    return '%s (est. remaining in epoch: %s)' % (format_time(s), format_time(rs))
 
 
 def save_plot(points, name, freq):

@@ -17,9 +17,9 @@ def train(src, tgt, model, optimizer, loss_fn, max_length):
     loss = 0.0
     tgt_length = tgt.size()[0]
 
-    decoder_output = model(src, tgt)
+    decoder_scores, words = model(src, tgt)
     
-    for gen, ref in zip(decoder_output, tgt):
+    for gen, ref in zip(decoder_scores, tgt):
         # print("Gen: ", gen, "Ref: ", ref)
         loss += loss_fn(gen, ref)
 
@@ -33,7 +33,7 @@ def train(src, tgt, model, optimizer, loss_fn, max_length):
 
 
 #todo: generation
-def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt'):
+def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, loss_fn, output_file='output.txt'):
     """Generate sentences, and compute the average loss."""
 
     total_loss = 0.0
@@ -42,15 +42,17 @@ def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, output_file='ou
     for sent in sents:
         src_ref = sent[0]
         tgt_ref = sent[1]
+        sent_var = pair2var(sent)
         src_words = [src_vocab.idx2word[i] for i in src_ref]
         tgt_words = [tgt_vocab.idx2word[i] for i in tgt_ref]
         output.append(" ".join(src_words))
-        predicted = model.generate(pair2var(sent)[0], max_gen_length)
+        scores, predicted = model.generate(sent_var[0], max_gen_length)
         predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
-        print("Predicted:", predicted_words, "Truth: ", tgt_words)
+#        print("Predicted:", predicted_words, "  Truth: ", tgt_words)
 
-        for gen, ref in zip(predicted, tgt_ref):
-            total_loss += loss_fn(gen, ref) / len(sent)
+        for gen, ref in zip(scores, sent_var[1]):
+            loss = loss_fn(gen, ref)
+            total_loss += loss.data[0] / len(tgt_ref)
 
     with open(output_file, 'w') as f:
         f.write("\n".join(output))
@@ -59,10 +61,14 @@ def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, output_file='ou
     return avg_loss, total_loss
 
 
-def train_setup(model, train_sents, dev_sents, tst_sents, num_epochs, learning_rate=0.01,
-                print_every=1000, plot_every=100):
+def train_setup(model, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs,
+                learning_rate=0.01, print_every=1000, plot_every=100, max_gen_length=100):
     start = time.time()
-    plot_losses = []
+    train_plot_losses = []
+    dev_plot_losses   = []
+    train_plot_perplexities = []
+    dev_plot_perplexities   = []
+    print_perplexity_avg = -1
     print_loss_total = 0  #resets every print_every
     plot_loss_total  = 0  #resets every plot_every
 
@@ -71,14 +77,13 @@ def train_setup(model, train_sents, dev_sents, tst_sents, num_epochs, learning_r
     # Use NLLLoss
     loss_fn = nn.NLLLoss()
     use_nllloss = True
-    plot_perplexities = []
 
-    num_batches = len(sents)  #todo: currently batch_size=1 every sentence is a batch
+    num_batches = len(train_sents)  #todo: currently batch_size=1 every sentence is a batch
 
     print("Starting training:")
     for ep in range(num_epochs):
         print("Epoch %d:" % ep)
-        random.shuffle(sents)
+        random.shuffle(train_sents_vars)
         
         for iteration in range(num_batches):
             src_sent = train_sents_vars[iteration][0]
@@ -95,8 +100,8 @@ def train_setup(model, train_sents, dev_sents, tst_sents, num_epochs, learning_r
             if (iteration + 1) % print_every == 0:
                 print_loss_avg = print_loss_total / print_every
                 print_loss_total = 0
-                perc_through_training = (ep + iteration / num_batches) / num_epochs
-                print('Iter: {} / {}.  {}'.format(iteration + 1, num_batches, time_elapsed(start, perc_through_training)))
+                perc_through_epoch = (iteration + 1) / num_batches
+                print('Iter: {} / {}.  {}'.format(iteration + 1, num_batches, time_elapsed(start, perc_through_epoch)))
                 print('\tLoss: {0:.4f}'.format(print_loss_avg))
                 if use_nllloss:
                     print_perplexity_avg = perplexity(print_loss_avg)
@@ -105,11 +110,11 @@ def train_setup(model, train_sents, dev_sents, tst_sents, num_epochs, learning_r
             # append losses for plot
             if (iteration + 1) % plot_every == 0:
                 plot_loss_avg = plot_loss_total / plot_every
-                plot_losses.append(plot_loss_avg)
+                train_plot_losses.append(plot_loss_avg)
                 plot_loss_total = 0
                 if use_nllloss:
                     plot_perplexity_avg = perplexity(plot_loss_avg)
-                    plot_perplexities.append(plot_perplexity_avg)
+                    train_plot_perplexities.append(plot_perplexity_avg)
 
         # end of epoch
         # save the model
@@ -119,20 +124,26 @@ def train_setup(model, train_sents, dev_sents, tst_sents, num_epochs, learning_r
             model_name = "model_e{0}_loss{1:.3f}".format(ep, print_perplexity_avg)
         model.save("{}{}.pkl".format(MODEL_PATH, model_name))
         # generate output
-        avg_loss, total_loss = generate(model, dev_sents, src_vocab, tgt_vocab, max_sent_length, "dev_output.txt")
+        avg_loss, total_loss = generate(model, dev_sents, src_vocab, tgt_vocab, max_gen_length, loss_fn, "dev_output.txt")
+        
         dev_ppl = perplexity(avg_loss)
-        print("-"*20+"\n")
-        print("Epoch %d: dev ppl, %f. avg loss, %f. total loss, %f" % dev_ppl, avg_loss, total_loss)
-        print("-"*20+"\n")
+        dev_plot_losses.append(avg_loss)
+        dev_plot_perplexities.append(dev_ppl)
+        print("-"*65)
+        print("Epoch {}: dev ppl, {:.4f}. avg loss, {:.4f}. total loss, {:.4f}".format(ep, dev_ppl, avg_loss, total_loss))
+        print("-"*65)
 
     # end of training
-    avg_loss, total_loss = generate(model, test_sents, src_vocab, tgt_vocab, max_sent_length, 'tst_output.txt')
+    avg_loss, total_loss = generate(model, tst_sents, src_vocab, tgt_vocab, max_gen_length, loss_fn, 'tst_output.txt')
     tst_ppl = perplexity(avg_loss)
-    print("-"*20+"\n")
-    print("Epoch %d: tst_ppl, %f. avg loss, %f. total loss, %f" % tst_ppl, avg_loss, total_loss)
-    print("-"*20+"\n")
+    print("-"*65)
+    print("Epoch {}: tst_ppl, {:.4f}. avg loss, {:.4f}. total loss, {:.4f}".format(ep, tst_ppl, avg_loss, total_loss))
+    print("-"*65)
 
     #todo: evaluate bleu
 
-    save_plot(plot_losses, 'loss', plot_every)
-    save_plot(plot_perplexities, 'perplexity', plot_every)
+    save_plot(train_plot_losses, 'train_loss', plot_every)
+    save_plot(train_plot_perplexities, 'train_perplexity', plot_every)
+
+    save_plot(dev_plot_losses, 'dev_loss', 1)
+    save_plot(dev_plot_perplexities, 'dev_perplexity', 1)
