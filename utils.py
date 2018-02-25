@@ -50,6 +50,7 @@ def save_plot(points, name, freq):
     plt.ylabel(name.title())
     plt.title(name.title())
     plt.savefig('{}{}.jpg'.format(OUTPUT_PATH, name))
+    plt.close()
 
 
 def perplexity(loss):

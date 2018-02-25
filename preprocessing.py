@@ -1,6 +1,7 @@
 """read data, create vocab, and preprocess"""
 import unicodedata
 import regex as re
+import pickle
 
 SOS = 0
 EOS = 1
@@ -44,6 +45,11 @@ class Vocab:
             self.word2idx[unk_word] = len(self.idx2word)
             self.idx2word.append(unk_word)
         self.unk_token = self.word2idx[unk_word]
+
+    def save(self, fname):
+        """Save the vocabulary to a pickle file."""
+        with open(fname, 'wb') as pickle_file:
+            pickle.dump(self, pickle_file)
         
 
 # reads parallel data where format is one sentence per line, filename prefix.lang

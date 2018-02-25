@@ -23,12 +23,12 @@ def main(args):
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
 #    train_prefix = 'data/examples/debug'
     
-    max_num_sents   = 60000  #high enough to get all sents
-    max_sent_length = 30
+    max_num_sents   = 100  #high enough to get all sents
+    max_sent_length = 50
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 10000
+    model_every = 90
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.xml')
@@ -41,7 +41,14 @@ def main(args):
     # Initialize our model
     if args.model is not None:
         model = pickle.load(open(args.model, 'rb'))
+        src_vocab = pickle.load(open(args.srcvocab, 'rb'))
+        tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
     else:
+        src_vocab.save("models/src-vocab_" + pair + "_maxnum" + str(max_num_sents) +
+                       "_maxlen" + str(max_sent_length) + ".pkl")
+        tgt_vocab.save("models/tgt-vocab_" + pair + "_maxnum" + str(max_num_sents) +
+                       "_maxlen" + str(max_sent_length) + ".pkl")
+
         enc = RNNEncoder(vocab_size=input_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
         dec = RNNDecoder(vocab_size=output_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
 
@@ -58,5 +65,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--model", default=None)
+    parser.add_argument("-s", "--srcvocab", default=None)
+    parser.add_argument("-t", "--tgtvocab", default=None)
     args = parser.parse_args()
     main(args)
