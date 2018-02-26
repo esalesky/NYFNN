@@ -14,16 +14,15 @@ def main(args):
     print("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
     src_lang = 'en'
-    tgt_lang = 'cs'
-    pair = 'en-cs'
-#    pair = 'en-de'
+    tgt_lang = 'cs' #cs
+    pair = src_lang + "-" + tgt_lang
 
     train_prefix = 'data/'+pair+'/train.tags.'+pair
     dev_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2012.'+pair
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
 #    train_prefix = 'data/examples/debug'
     
-    max_num_sents   = 100  #high enough to get all sents
+    max_num_sents   = 60000  #high enough to get all sents
     max_sent_length = 30
     num_epochs  = 30
     print_every = 50
