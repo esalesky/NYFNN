@@ -65,39 +65,10 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
     
     print("Reading files...")
 
-    # read file, create vocab, and maps words to idxs
-    src_sents = []
-    num_src_sents = 0
-    with open(src_file, 'r', encoding='utf-8') as f:
-        line = f.readline().strip()
-        if line.startswith("<"):  #iwslt pseudo-xml
-            while line.startswith("<") and not line.startswith("<seg id") and line:
-                line = f.readline().strip()
-            line = re.sub('<[^>]*>', '', line)
-        while line and num_src_sents < max_num_sents:
-            tokens = line.strip().split()
-            sent = [ src_vocab.map2idx(w) for w in tokens ]
-            src_sents.append([SOS] + sent + [EOS])
-            num_src_sents+=1
-            line = f.readline()
+    src_vocab, src_sents = load_sents(src_file, src_vocab, max_num_sents)
+    tgt_vocab, tgt_sents = load_sents(tgt_file, tgt_vocab, max_num_sents)
 
-    # read file, create vocab, and maps words to idxs
-    tgt_sents = []
-    num_tgt_sents = 0
-    with open(tgt_file, 'r', encoding='utf-8') as f:
-        line = f.readline().strip()
-        if line.startswith("<"):  #iwslt pseudo-xml
-            while line.startswith("<") and not line.startswith("<seg id") and line:
-                line = f.readline().strip()
-            line = re.sub('<[^>]*>', '', line)
-        while line and num_tgt_sents < max_num_sents:
-            tokens = line.strip().split()
-            sent = [ tgt_vocab.map2idx(w) for w in tokens ]
-            tgt_sents.append([SOS] + sent + [EOS])
-            num_tgt_sents+=1
-            line = f.readline()
-
-    if num_src_sents != num_tgt_sents:
+    if len(src_sents) != len(tgt_sents):
         raise RuntimeError("different number of src and tgt sentences!! {num_src_sents} != {num_tgt_sents}")
 
     src_vocab.freeze_vocab()
@@ -107,6 +78,30 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
     tgt_vocab.set_unk(UNK_TOKEN)
 
     return src_vocab, tgt_vocab, list(zip(src_sents, tgt_sents))
+
+
+def load_sents(sent_file, vocab, max_num_sents):
+    # read file, create vocab, and maps words to idxs
+    sents = []
+    num_sents = 0
+    with open(sent_file, 'r', encoding='utf-8') as f:
+        line = f.readline().strip()
+        while line:
+            if line.startswith('<'): # Handles the IWSLT XML formats
+                if line.startswith('<seg id'):
+                    line = re.sub('<[^>]*>', '', line).strip()
+                else:
+                    continue
+            else:
+                line = line.strip() # Supports both txt and the pseudo IWSLT XML
+            tokens = line.split()
+            sent = [vocab.map2idx(w) for w in tokens]
+            sents.append([SOS] + sent + [EOS])
+            num_sents += 1
+            line = f.readline()
+            if num_sents >= max_num_sents:
+                break
+    return vocab, sents
 
 
 def input_reader(file_prefix, src, tgt, max_num_sents,
@@ -123,6 +118,7 @@ def input_reader(file_prefix, src, tgt, max_num_sents,
 #true if sent should not be filtered
 def keep_pair(p, max_sent_length):
     return len(p[0]) < max_sent_length and len(p[1]) < max_sent_length
+
 
 #return sents filtered by max sent length, max num sents
 def filter_sents(sents, max_sent_length):
