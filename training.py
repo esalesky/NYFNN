@@ -7,7 +7,7 @@ from torch import optim
 from torch.autograd import Variable
 
 #local imports
-from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH
+from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH, OUTPUT_PATH
 from preprocessing import SOS, EOS
 
 
@@ -53,7 +53,7 @@ def generate(model, sents, src_vocab, tgt_vocab, max_gen_length, loss_fn, output
             loss = loss_fn(gen, ref)
             total_loss += loss.data[0] / len(tgt_ref)
 
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(OUTPUT_PATH + '/' + output_file, 'w', encoding='utf-8') as f:
         f.write("\n".join(output))
 
     avg_loss = total_loss / len(sents)

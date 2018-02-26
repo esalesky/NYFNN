@@ -14,28 +14,29 @@ def main(args):
     print("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
     src_lang = 'en'
-    tgt_lang = 'cs' #cs
-    pair = src_lang + "-" + tgt_lang
+    tgt_lang = 'cs'  #cs or de
+    pair = "en-" + tgt_lang
 
     train_prefix = 'data/'+pair+'/train.tags.'+pair
     dev_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2012.'+pair
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
 #    train_prefix = 'data/examples/debug'
+    file_suffix  = ".txt"
     
-    max_num_sents   = 60000  #high enough to get all sents
+    max_num_sents   = 60000
     max_sent_length = 30
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 90
-    
-    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix='.txt')
-    src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.txt')
-    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix='.txt')
-
+    model_every = 1000
     hidden_size = 128
+    
+    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
+    src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
+    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
+
     input_size  = src_vocab.vocab_size()
-    output_size = tgt_vocab.vocab_size()
+    output_size = tgt_vocab.vocab_size()    
 
     # Initialize our model
     if args.model is not None:
@@ -51,11 +52,11 @@ def main(args):
         enc = RNNEncoder(vocab_size=input_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
         dec = RNNDecoder(vocab_size=output_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
 
-        if use_cuda:
-            enc = enc.cuda()
-            dec = dec.cuda()
-
         model = EncDec(enc, dec)
+
+
+    if use_cuda:
+        model = model.cuda()
 
     train_setup(model, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
                 num_epochs=num_epochs, print_every=print_every, plot_every=plot_every, model_every=model_every)

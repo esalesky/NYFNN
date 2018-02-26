@@ -1,17 +1,17 @@
-
 import regex as re
 from preprocessing import Vocab, SOS, EOS
+import argparse
 
 from os import listdir
 
-def main():
-    prefix = "data/en-cs/"
+def main(args):
+    prefix = args.dirname  #path to dir to convert, ie data/en-{cs,de}
     files = [f for f in listdir(prefix)]
     files.remove("README")
     for f in files:
         if f.endswith(".txt"):
             continue
-        if f == 'train.de' or f == 'train.cs' or f == 'README':
+        if f == 'train.de' or f == 'train.cs':
             continue
         outfile = open(prefix + f.replace(".xml", "") + ".txt", "w+", encoding='utf-8')
         convert(prefix + f, outfile)
@@ -33,4 +33,7 @@ def convert(file, output):
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dirname", required=True, help='data dir (eg data/en-cs)')
+    args = parser.parse_args()
+    main(args)
