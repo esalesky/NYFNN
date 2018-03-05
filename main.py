@@ -1,17 +1,20 @@
 """Main file for 11-747 Project. By Alex Coda, Andrew Runge, & Liz Salesky."""
 import argparse
-import random
 import pickle
 
-#local imports
-from preprocessing import input_reader
 from encdec import RNNEncoder, RNNDecoder, EncDec
-from training import train_setup, generate
-from utils import use_cuda, MODEL_PATH
-
+# local imports
+from preprocessing import input_reader
+from utils import use_cuda
+from training import MTTrainer
+import logging
+import logging.config
+from train_monitor import TrainMonitor
 
 def main(args):
-    print("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
+    logger = logging.getLogger(__name__)
+
+    logger.info("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
     src_lang = 'en'
     tgt_lang = 'cs'  #cs or de
@@ -23,12 +26,13 @@ def main(args):
 #    train_prefix = 'data/examples/debug'
     file_suffix  = ".txt"
     
-    max_num_sents   = 60000
-    max_sent_length = 30
+    max_num_sents   = 100
+    max_sent_length = 50
+    max_gen_length = 100
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 1000
+    model_every = 20000
     hidden_size = 128
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
@@ -54,12 +58,15 @@ def main(args):
 
         model = EncDec(enc, dec)
 
-
     if use_cuda:
         model = model.cuda()
 
-    train_setup(model, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
-                num_epochs=num_epochs, print_every=print_every, plot_every=plot_every, model_every=model_every)
+    monitor = TrainMonitor(model, len(train_sents), print_every=print_every, plot_every=plot_every, save_plot_every=plot_every,
+                           checkpoint_every=model_every)
+
+    trainer = MTTrainer(model, monitor, optim_type='SGD', learning_rate=0.01)
+
+    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length)
 
 
 if __name__ == "__main__":
@@ -68,4 +75,5 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--srcvocab", default=None)
     parser.add_argument("-t", "--tgtvocab", default=None)
     args = parser.parse_args()
+    logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': 'training.log'})
     main(args)

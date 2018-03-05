@@ -40,7 +40,7 @@ def bleu(stats):
 
 if __name__=='__main__':
     stats = numpy.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-    for hyp, ref in zip(open(sys.argv[1], 'r'), open(sys.argv[2], 'r')):  #hypothesis file, reference file
+    for hyp, ref in zip(open(sys.argv[1], 'r', encoding='utf-8'), open(sys.argv[2], 'r', encoding='utf-8')):  #hypothesis file, reference file
         hyp, ref = (hyp.strip("<s>").strip("</s>").strip(), ref.strip().split())
         stats += numpy.array(bleu_stats(hyp, ref))
 

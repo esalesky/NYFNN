@@ -6,7 +6,11 @@ from torch.autograd import Variable
 from utils import use_cuda
 from preprocessing import SOS, EOS
 
+import logging
+
 #todo: minibatching
+
+logger = logging.getLogger(__name__)
 
 def rnn_factory(rnn_type, **kwargs):
     assert rnn_type in ['LSTM','GRU'], 'rnn_type not one of currently supported options'
@@ -132,6 +136,6 @@ class EncDec(nn.Module):
 
     def save(self, fname):
         """Save the model to a pickle file."""
-        print("Saving at: {}".format(fname))
+        logger.info("Saving at: {}".format(fname))
         with open(fname, 'wb') as pickle_file:
             pickle.dump(self, pickle_file)

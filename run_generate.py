@@ -17,8 +17,8 @@ def main(args):
     tgt_lang = args.tgtlang
     pair = args.srclang + "-" + args.tgtlang
 
-    max_num_sents = 100  # high enough to get all sents
-    max_sent_length = 50
+    max_num_sents = 10000  # high enough to get all sents
+    max_sent_length = 30
     max_gen_length = 100
 
     # Load the model
@@ -27,10 +27,10 @@ def main(args):
         model = model.cuda()
     src_vocab = pickle.load(open(args.srcvocab, 'rb'))
     tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
-    file_prefix = "data/{}/IWSLT16.TED.tst2012.{}".format(pair, pair)
+    file_prefix = "data/{}/IWSLT16.TED.tst2013.{}".format(pair, pair)
 
     src_vocab, tgt_vocab, tst_sents = input_reader(file_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length,
-                                                   src_vocab, tgt_vocab, file_suffix='.xml')
+                                                   src_vocab, tgt_vocab, file_suffix='.txt')
 
     loss_fn = nn.NLLLoss()
     generate(model, tst_sents, src_vocab, tgt_vocab, max_gen_length, loss_fn, args.output)
