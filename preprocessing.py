@@ -3,6 +3,8 @@ import unicodedata
 import regex as re
 import pickle
 
+import logging
+
 SOS = 0
 EOS = 1
 
@@ -13,6 +15,8 @@ UNK_TOKEN = "<unk>"
 
 #todo: tokenization, bpe, iwslt xml format
 #todo: import vocabs (so we don't have to do this every time for the same data) ?
+
+logger = logging.getLogger(__name__)
 
 class Vocab:
     def __init__(self, name):
@@ -63,7 +67,7 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
     if tgt_vocab is None:
         tgt_vocab = Vocab(tgt_lang)
     
-    print("Reading files... src: {}, tgt: {}".format(src_file, tgt_file))
+    logger.info("Reading files... src: {}, tgt: {}".format(src_file, tgt_file))
 
     sents = []
     with open(src_file, encoding='utf-8') as src_sents, open(tgt_file, encoding='utf-8') as tgt_sents:
@@ -77,7 +81,7 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
                 if len(sents) >= max_num_sents:
                     break
 
-    print("Read {} sentences.".format(len(sents)))
+    logger.info("Read {} sentences.".format(len(sents)))
     src_vocab.freeze_vocab()
     src_vocab.set_unk(UNK_TOKEN)
 
@@ -105,7 +109,7 @@ def input_reader(file_prefix, src, tgt, max_num_sents,
                                               src_vocab, tgt_vocab, max_sent_length, min_sent_length=1)
 
     if src_vocab is None:
-        print("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(),
+        logger.info("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(),
                                              tgt_vocab.name, tgt_vocab.vocab_size()))
     return src_vocab, tgt_vocab, sents
 

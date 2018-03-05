@@ -9,7 +9,7 @@ from utils import use_cuda
 from training import MTTrainer
 import logging
 import logging.config
-
+from train_monitor import TrainMonitor
 
 def main(args):
     logger = logging.getLogger(__name__)
@@ -28,10 +28,11 @@ def main(args):
     
     max_num_sents   = 100
     max_sent_length = 50
+    max_gen_length = 100
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 1000
+    model_every = 20000
     hidden_size = 128
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
@@ -60,12 +61,12 @@ def main(args):
     if use_cuda:
         model = model.cuda()
 
-    trainer = MTTrainer(model, optim_type='SGD', learning_rate=0.01)
+    monitor = TrainMonitor(model, len(train_sents), print_every=print_every, plot_every=plot_every, save_plot_every=plot_every,
+                           checkpoint_every=model_every)
 
-    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, print_every = print_every, plot_every = plot_every, model_every=model_every)
+    trainer = MTTrainer(model, monitor, optim_type='SGD', learning_rate=0.01)
 
-    # train_setup(model, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
-    #             num_epochs=num_epochs, print_every=print_every, plot_every=plot_every, model_every=model_every)
+    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length)
 
 
 if __name__ == "__main__":

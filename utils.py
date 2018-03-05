@@ -39,7 +39,7 @@ def time_elapsed(start, percent):  #todo: make this realistic plz
 
 
 def save_plot(points, name, freq):
-    plt.figure()
+    #plt.figure()
     fig, ax = plt.subplots()
     # puts ticks at regular intervals
     # loc = ticker.MultipleLocator(base=10.0)
@@ -50,7 +50,7 @@ def save_plot(points, name, freq):
     plt.ylabel(name.title())
     plt.title(name.title())
     plt.savefig('{}{}.jpg'.format(OUTPUT_PATH, name))
-    plt.close()
+    plt.close(fig)
 
 
 def perplexity(loss):

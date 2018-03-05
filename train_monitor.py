@@ -58,7 +58,6 @@ class PrintCallback(TrainCallback):
             self.iters += 1
             if self.iters % self.print_every == 0:
                 print_loss_avg = self.print_loss_total / self.print_every
-                print_loss_total = 0
                 perc_through_epoch = self.iters / self.iters_per_epoch
                 logger.info('Iter: {} / {}. {}'.format(self.iters, self.iters_per_epoch, time_elapsed(self.start,
                                                                                                    perc_through_epoch)))
@@ -70,7 +69,7 @@ class PrintCallback(TrainCallback):
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         self.iters = 0
         self.print_loss_total = 0
-        if loss_type != type:
+        if loss_type != self.loss_type:
             return
         ppl = perplexity(avg_loss)
         logger.info("-" * 65)
@@ -79,8 +78,7 @@ class PrintCallback(TrainCallback):
         logger.info("-" * 65)
 
     def finish_training(self):
-        logger.info("Finished training.")
-
+        pass
 
 """Callback for plotting loss and optionally perplexity. Note that separate callbacks should be created for
    plotting the same loss (i.e. test or dev) at different intervals, such as every epoch or every 10,000 iterations."""
@@ -88,13 +86,16 @@ class PrintCallback(TrainCallback):
 
 class PlotCallback(TrainCallback):
 
-    def __init__(self, iters_per_epoch, loss_type, loss_file, plot_every=0, save_every=0, perplexity_file=None):
+    def __init__(self, iters_per_epoch, loss_type, loss_file, plot_every=0, plot_scale=1, save_every=0,
+                 perplexity_file=None):
         super().__init__(iters_per_epoch, loss_type)
         self.loss_file = loss_file
         self.plot_every = plot_every
         self.save_every = save_every
         self.plot_losses = []
         self.plot_loss_total = 0
+        # X-axis scale, allows for plotting values that are pre-averaged
+        self.plot_scale = plot_scale * self.plot_every
         if perplexity_file:
             self.perplexity_file = perplexity_file
             self.plot_perplexities = []
@@ -102,7 +103,7 @@ class PlotCallback(TrainCallback):
     def start_training(self):
         pass
 
-    def finish_iter(self, loss, loss_type):
+    def finish_iter(self, loss_type, loss):
         if self.loss_type != loss_type:
             return
         if self.plot_every > 0:
@@ -112,13 +113,13 @@ class PlotCallback(TrainCallback):
                 plot_loss_avg = self.plot_loss_total / self.plot_every
                 self.plot_losses.append(plot_loss_avg)
                 self.plot_loss_total = 0
-                if self.plot_perplexities:
+                if self.perplexity_file:
                     plot_perplexity_avg = perplexity(plot_loss_avg)
                     self.plot_perplexities.append(plot_perplexity_avg)
             if self.iters % self.save_every == 0:
-                save_plot(self.plot_losses, self.loss_file, self.save_every)
+                save_plot(self.plot_losses, self.loss_file, self.plot_scale)
                 if self.plot_perplexities:
-                    save_plot(self.plot_perplexities, self.perplexity_file, self.save_every)
+                    save_plot(self.plot_perplexities, self.perplexity_file, self.plot_scale)
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         # Note that we explicitly don't reset self.iters here, because it would mess up how often we plot
@@ -126,7 +127,7 @@ class PlotCallback(TrainCallback):
             return
         self.plot_losses.append(avg_loss)
         save_plot(self.plot_losses, self.loss_file, 1)
-        if self.plot_perplexities:
+        if self.perplexity_file:
             self.plot_perplexities.append(perplexity(avg_loss))
             save_plot(self.plot_perplexities, self.perplexity_file, 1)
 
@@ -148,7 +149,7 @@ class SaveModelCallback(TrainCallback):
         self.epochs = 0
         self.iters = 0
         self.model_path = model_path
-        self.loss_total = 0
+        self.total_loss = 0
 
     def start_training(self):
         pass
@@ -158,41 +159,48 @@ class SaveModelCallback(TrainCallback):
             return
         if self.save_every > 0:
             self.iters += 1
-            self.loss_total += loss
+            self.total_loss += loss
             if self.iters % self.save_every == 0:
                 avg_loss = self.total_loss / self.save_every
                 epoch_fraction = self.iters / self.iters_per_epoch
                 model_name = "model_e{0}.{1}_loss{2:.3f}".format(self.epochs, epoch_fraction, avg_loss)
                 self.model.save("{}{}.pkl".format(self.model_path, model_name))
-                self.loss_total = 0
+                self.total_loss = 0
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         if loss_type != loss_type:
             return
+        self.iters = 0
         model_name = "model_e{0}_loss{1:.3f}".format(self.epochs, avg_loss)
         self.model.save("{}{}.pkl".format(self.model_path, model_name))
 
     def finish_training(self):
-        t = time.ctime(time.time())
+        t = time.strftime("%Y-%m-%d-%H%M%S", time.localtime(time.time()))
         model_name = "model_final_{}".format(t)
         self.model.save("{}{}.pkl".format(self.model_path, model_name))
 
 
 class TrainMonitor(TrainCallback):
 
-    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_every=20000):
+    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, checkpoint_every=20000):
+        self.checkpoint = checkpoint_every
         self.callbacks = []
-        self.callbacks.append(PrintCallback(iters_per_epoch, 'train', print_every))
+        self.callbacks.append(PrintCallback(iters_per_epoch, 'train', print_every=print_every))
+        # Print dev and test metrics once per epoch
         self.callbacks.append(PrintCallback(iters_per_epoch, 'dev'))
         self.callbacks.append(PrintCallback(iters_per_epoch, 'test'))
+        # Plot train loss every plot_every epochs
         self.callbacks.append(PlotCallback(iters_per_epoch, 'train', 'train_loss', plot_every=plot_every,
-                                           save_every=save_every, perplexity_file='train_perplexity'))
-        self.callbacks.append(PlotCallback(iters_per_epoch, 'dev', 'dev_loss', plot_every=plot_every,
-                                           save_every=save_every, perplexity_file='dev_perplexity'))
+                                           save_every=save_plot_every, perplexity_file='train_perplexity'))
+        # Want to plot dev loss every time we compute it in trainer, so plot every time we run the checkpoint
+        self.callbacks.append(PlotCallback(iters_per_epoch, 'dev-cp', 'dev_loss', plot_every=1, plot_scale=checkpoint_every,
+                                           save_every=1, perplexity_file='dev_perplexity'))
+        # Plot dev loss and perplexity once per epoch
         self.callbacks.append(PlotCallback(iters_per_epoch, 'dev', 'dev_epoch_loss',
                                            perplexity_file='dev_epoch_perplexity'))
+        # # Save model
         self.callbacks.append(SaveModelCallback(iters_per_epoch, 'train', model, model_path=MODEL_PATH,
-                                                save_every=save_every))
+                                                save_every=checkpoint_every))
 
     def start_training(self):
         for c in self.callbacks:
@@ -209,3 +217,4 @@ class TrainMonitor(TrainCallback):
     def finish_training(self):
         for c in self.callbacks:
             c.finish_training()
+        logger.info("Finished training.")
