@@ -2,14 +2,14 @@
 import argparse
 import pickle
 
-from encdec import RNNEncoder, RNNDecoder, EncDec
-# local imports
+from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder
 from preprocessing import input_reader
-from utils import use_cuda
+from utils import use_cuda, MODEL_PATH
 from training import MTTrainer
 import logging
 import logging.config
 from train_monitor import TrainMonitor
+
 
 def main(args):
     logger = logging.getLogger(__name__)
@@ -26,14 +26,15 @@ def main(args):
 #    train_prefix = 'data/examples/debug'
     file_suffix  = ".txt"
     
-    max_num_sents   = 100
-    max_sent_length = 50
-    max_gen_length = 100
+    max_num_sents   = int(args.maxnumsents)
+    max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
+    max_gen_length  = 100    
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
     model_every = 20000
-    hidden_size = 128
+    hidden_size = 256  #paper: 1024
+    embed_size  = 256  #paper: 500
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
@@ -53,9 +54,8 @@ def main(args):
         tgt_vocab.save("models/tgt-vocab_" + pair + "_maxnum" + str(max_num_sents) +
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
-        enc = RNNEncoder(vocab_size=input_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
-        dec = RNNDecoder(vocab_size=output_size, embed_size=hidden_size, hidden_size=hidden_size, rnn_type='LSTM', num_layers=1, bidirectional=False)
-
+        enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 
     if use_cuda:
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--model", default=None)
     parser.add_argument("-s", "--srcvocab", default=None)
     parser.add_argument("-t", "--tgtvocab", default=None)
+    parser.add_argument("-n", "--maxnumsents", default=250000)  #defaults to high enough for all
     args = parser.parse_args()
     logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': 'training.log'})
     main(args)
