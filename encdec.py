@@ -26,17 +26,20 @@ class RNNEncoder(nn.Module):
 
         # The layers of the NN
         self.embedding   = nn.Embedding(vocab_size, embed_size)
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size,
+        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, batch_first=True,
                                num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
         self.hidden = None
 
    # src is a batch of sentences
     def forward(self, src):
         embedded = self.embedding(src)  # 3D Tensor of size [batch_size x num_hist x emb_size]
+        print(embedded.size())
         batch_size = embedded.shape[0]
+        print(batch_size)
         #feat = embedded.view(embedded.size(0), -1) # 2D Tensor of size [batch_size x (num_hist*emb_size)]
         #print("Emb shape: {}".format(embedded.shape))
         output, self.hidden = self.rnn(embedded, self.hidden)
+        print(output.size(), self.hidden.size())
         # embedded = self.embedding(src)
         # output, self.hidden = self.rnn(embedded.view(len(src), 1, -1), self.hidden)
         return output, self.hidden

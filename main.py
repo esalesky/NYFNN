@@ -59,7 +59,7 @@ def main(args):
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
         enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
-        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 
     if use_cuda:
