@@ -7,15 +7,14 @@ from utils import use_cuda
 from preprocessing import SOS, EOS
 
 import logging
-
-#todo: minibatching
-
 logger = logging.getLogger(__name__)
+
 
 def rnn_factory(rnn_type, **kwargs):
     assert rnn_type in ['LSTM','GRU'], 'rnn_type not one of currently supported options'
     rnn = getattr(nn, rnn_type)(**kwargs)
     return rnn
+
 
 class RNNEncoder(nn.Module):
     """simple initial encoder"""
@@ -23,27 +22,21 @@ class RNNEncoder(nn.Module):
         super(RNNEncoder, self).__init__()
         self.vocab_size  = vocab_size  #source vocab size
         self.hidden_size = hidden_size
-        self.embedding   = nn.Embedding(vocab_size, embed_size)
         self.num_layers  = num_layers
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
-        self.hidden = self.init_hidden()
 
-    #src is currently single sentence
+        # The layers of the NN
+        self.embedding   = nn.Embedding(vocab_size, embed_size)
+        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size,
+                               num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
+        self.hidden = None
+
+
+   # src is a batch of sentences
     def forward(self, src):
-        embedded = self.embedding(src)
-        output, self.hidden = self.rnn(embedded.view(len(src), 1, -1), self.hidden)
-        return output
-
-    def init_hidden(self):
-        # dimensions: num_layers, minibatch_size, hidden_dim
-        # LSTM needs one variable, GRU needs two - defaults take care of it
-        #result = (Variable(torch.zeros(1, 1, self.hidden_size)),
-        #          Variable(torch.zeros(1, 1, self.hidden_size)))
-        result = None
-        if use_cuda:
-            return result[0].cuda(), result[1].cuda()
-        else:
-            return result
+        embedded = self.embedding(src)  # 3D Tensor of size [batch_size x num_hist x emb_size]
+        feat = embedded.view(embedded.size(0), -1) # 2D Tensor of size [batch_size x (num_hist*emb_size)]
+        output, self.hidden = self.rnn(feat, self.hidden)
+        return output, self.hidden
 
 
     def save(self, fname):
@@ -111,6 +104,7 @@ class RNNDecoder(nn.Module):
         with open(fname, 'wb') as pickle_file:
             pickle.dump(self, pickle_file)
 
+
 class Attn(nn.Module):
     def __init__(self, hidden_size, attn_type):
         super(Attn, self).__init__()
@@ -122,7 +116,7 @@ class Attn(nn.Module):
     def forward(self, hidden, encoder_outputs):
         src_len = len(encoder_outputs)
         attn_weights = Variable(torch.zeros(src_len))  #dims are (batch size (1), num words (1), src len)
-        
+
         if use_cuda:
             attn_weights = attn_weights.cuda()
 
@@ -142,7 +136,7 @@ class AttnDecoder(nn.Module):
         super(AttnDecoder, self).__init__()
         self.vocab_size = vocab_size  #target vocab size
         self.hidden_size = hidden_size
-#        self.max_src_length = max_src_length  #todo: preallocate mem for longest src sent? would this actually be helpful?
+        #self.max_src_length = max_src_length  #todo: preallocate mem for longest src sent? would this actually be helpful?
         self.num_layers  = num_layers
 
         self.attn = Attn(hidden_size, attn_type="bilinear")
@@ -164,7 +158,6 @@ class AttnDecoder(nn.Module):
         words = []
         for _ in range(tgt_len): #todo: unless teacher forcing, shouldn't this just be until EOS?
             decoder_output, decoder_context, attn_weights = self.__forward_one_word(decoder_input, decoder_context, encoder_outputs)
-            
             _, top_idx = decoder_output.data.topk(1)
             # Recover the value of the top index and wrap in a new variable to break backprop chain
             word_idx = top_idx[0][0]
@@ -190,7 +183,7 @@ class AttnDecoder(nn.Module):
         attn_weights = self.attn(rnn_output, encoder_outputs)
         context = attn_weights.bmm(encoder_outputs.transpose(0, 1))  #swaps encoder dims for multiply: src_len x batch_size x hidden_size -> batch_size x src_len x hidden_size
         context = context.squeeze(1)  #collapse num words dim
-        
+
         # predict next word using rnn output and context vector
         output = torch.cat((rnn_output, context), 1)  #concat rnn output + context to input to output layer
         output = self.out(output)

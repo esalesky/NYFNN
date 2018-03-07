@@ -9,6 +9,7 @@ from torch.autograd import Variable
 #local imports
 from utils import use_cuda, pair2var, OUTPUT_PATH
 from preprocessing import SOS, EOS
+from batching import make_batches
 
 import logging
 
@@ -47,14 +48,17 @@ class MTTrainer:
         # Normalize loss by target length
         return loss.data[0] / tgt_length
 
-    def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=100, checkpoint=20000, debug=False):
-        train_sents_vars = [pair2var(s) for s in train_sents]
+    def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
+              num_epochs, max_gen_length=100, checkpoint=20000, debug=False):
 
-        num_batches = len(train_sents)  # todo: currently batch_size=1 every sentence is a batch
+        batch_size = 64
+        batches = make_batches(train_sents, batch_size)
+        num_batches = len(train_sents)
 
         self.monitor.iters_per_epoch = num_batches
         logger.info("Starting training:")
         self.monitor.start_training()
+
         total_iters = 0
         
         for ep in range(num_epochs):
@@ -63,10 +67,9 @@ class MTTrainer:
                 random.shuffle(train_sents_vars) #note: should shuffle within batch when batching
 
             for iteration in range(num_batches):
-                src_sent = train_sents_vars[iteration][0]
-                tgt_sent = train_sents_vars[iteration][1]
+                src_sent, tgt_sent = pair2var(batches[iteration])
 
-                batch_length = src_sent.size()[0]  # size of longest src sent in batch
+                batch_length = src_sent.size()[1]  # size of longest src sent in batch
                 loss = self.train_step(src_sent, tgt_sent, max_length=batch_length)
 
                 self.monitor.finish_iter('train', loss)
@@ -121,6 +124,3 @@ class MTTrainer:
 
         avg_loss = total_loss / len(sents)
         return avg_loss, total_loss
-
-
-

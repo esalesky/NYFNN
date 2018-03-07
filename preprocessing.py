@@ -1,7 +1,11 @@
 """read data, create vocab, and preprocess"""
+from sortedcontainers import SortedList
 import unicodedata
-import regex as re
 import pickle
+try:
+    import regex as re
+except ImportError:
+    import re
 
 import logging
 
@@ -19,11 +23,13 @@ UNK_TOKEN = "<unk>"
 logger = logging.getLogger(__name__)
 
 class Vocab:
+    """Class for mapping source and target vocab to indices."""
+
     def __init__(self, name):
         self.name = name
         self.word2idx = {SOS_TOKEN : SOS, EOS_TOKEN : EOS}
         self.idx2word = [SOS_TOKEN, EOS_TOKEN]
-        
+
         self.unk_token  = None     #default None, set below after vocab frozen
         self.vocab_frozen = False  #impt for decoding, where we should not add new vocab
 
@@ -54,7 +60,37 @@ class Vocab:
         """Save the vocabulary to a pickle file."""
         with open(fname, 'wb') as pickle_file:
             pickle.dump(self, pickle_file)
-        
+
+class SentencePair:
+    """Class for source, target sentence pairs. Allows easy sorting for minibatching."""
+
+    def __init__(self, pair):
+        self.pair = pair
+
+    def __len__(self):
+        return len(self[0])
+
+    def __repr__(self):
+        return "Sentence Pair: " + self.pair.__repr__()
+
+    def __getitem__(self, i):
+        return self.pair[i]
+
+    def __lt__(self, other):
+        if len(self) != len(other):
+            return len(self) < len(other)
+        else:
+            # Defer to tgt sent length if src lengths are equal
+            return len(self[1]) < len(other[1])
+
+    def __gt__(self, other):
+        if len(self) != len(other):
+            return len(self) > len(other)
+        else:
+            # Defer to tgt sent length if src lengths are equal
+            return len(self[1]) > len(other[1])
+
+
 
 # reads parallel data where format is one sentence per line, filename prefix.lang
 # expectation is file does not have SOS/EOS symbols
@@ -66,7 +102,7 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
         src_vocab = Vocab(src_lang)
     if tgt_vocab is None:
         tgt_vocab = Vocab(tgt_lang)
-    
+
     logger.info("Reading files... src: {}, tgt: {}".format(src_file, tgt_file))
 
     sents = []
@@ -87,6 +123,9 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
 
     tgt_vocab.freeze_vocab()
     tgt_vocab.set_unk(UNK_TOKEN)
+
+    # Sort the sentence pairs
+    sents = SortedList([*map(SentencePair, sents)])[:]
 
     return src_vocab, tgt_vocab, sents
 
