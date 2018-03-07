@@ -7,7 +7,7 @@ from torch import optim
 from torch.autograd import Variable
 
 #local imports
-from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH, OUTPUT_PATH
+from utils import use_cuda, pair2var, OUTPUT_PATH
 from preprocessing import SOS, EOS
 
 import logging
@@ -47,7 +47,7 @@ class MTTrainer:
         # Normalize loss by target length
         return loss.data[0] / tgt_length
 
-    def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=100, checkpoint=20000):
+    def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=100, checkpoint=20000, debug=False):
         train_sents_vars = [pair2var(s) for s in train_sents]
 
         num_batches = len(train_sents)  # todo: currently batch_size=1 every sentence is a batch
@@ -56,9 +56,11 @@ class MTTrainer:
         logger.info("Starting training:")
         self.monitor.start_training()
         total_iters = 0
+        
         for ep in range(num_epochs):
             logger.info("Epoch %d:" % ep)
-            random.shuffle(train_sents_vars)
+            if not debug:
+                random.shuffle(train_sents_vars) #note: should shuffle within batch when batching
 
             for iteration in range(num_batches):
                 src_sent = train_sents_vars[iteration][0]

@@ -10,10 +10,8 @@ import logging
 import logging.config
 from train_monitor import TrainMonitor
 
-
 def main(args):
     logger = logging.getLogger(__name__)
-
     logger.info("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
     src_lang = 'en'
@@ -23,8 +21,14 @@ def main(args):
     train_prefix = 'data/'+pair+'/train.tags.'+pair
     dev_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2012.'+pair
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
-#    train_prefix = 'data/examples/debug'
     file_suffix  = ".txt"
+
+    debug=False
+    if debug:
+        train_prefix = 'data/examples/debug'
+        dev_prefix = 'data/examples/debug'
+        tst_prefix = 'data/examples/debug'
+        file_suffix = ''
     
     max_num_sents   = int(args.maxnumsents)
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
@@ -34,7 +38,7 @@ def main(args):
     plot_every  = 50
     model_every = 20000
     hidden_size = 256  #paper: 1024
-    embed_size  = 256  #paper: 500
+    embed_size  = 128  #paper: 500
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
@@ -66,7 +70,7 @@ def main(args):
 
     trainer = MTTrainer(model, monitor, optim_type='SGD', learning_rate=0.01)
 
-    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length)
+    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length, debug=debug)
 
 
 if __name__ == "__main__":

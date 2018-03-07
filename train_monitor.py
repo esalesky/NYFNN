@@ -168,7 +168,7 @@ class SaveModelCallback(TrainCallback):
                 self.total_loss = 0
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
-        if loss_type != loss_type:
+        if loss_type != self.loss_type:
             return
         self.iters = 0
         model_name = "model_e{0}_loss{1:.3f}".format(self.epochs, avg_loss)

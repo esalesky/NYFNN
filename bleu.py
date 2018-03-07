@@ -1,3 +1,4 @@
+import argparse
 import math
 from collections import Counter
 import numpy
@@ -10,10 +11,14 @@ import sys
 # (c, r, numerator1, denominator1, ... numerator4, denominator4)
 # Summing the columns across calls to this function on an entire corpus will
 # produce a vector of statistics that can be used to compute BLEU (below)
-def bleu_stats(hypothesis, reference):
+# Optionally computer lowercase BLEU stats
+def bleu_stats(hypothesis, reference, lowercase):
     stats = []
     stats.append(len(hypothesis))
     stats.append(len(reference))
+    if lowercase:
+        hypothesis = hypothesis.lower()
+        reference  = reference.lower()
     for n in range(1,5):
         s_ngrams = Counter([tuple(hypothesis[i:i+n]) for i in range(len(hypothesis)+1-n)])
         r_ngrams = Counter([tuple(reference[i:i+n]) for i in range(len(reference)+1-n)])
@@ -38,11 +43,17 @@ def bleu(stats):
     return bleu, ngram_precisions
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-h", "--hyp", default=None)
+    parser.add_argument("-r", "--ref", default=None)
+    parser.add_argument("-l", "--lowercase", default=False)
+    args = parser.parse_args()
+
     stats = numpy.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-    for hyp, ref in zip(open(sys.argv[1], 'r', encoding='utf-8'), open(sys.argv[2], 'r', encoding='utf-8')):  #hypothesis file, reference file
+    for hyp, ref in zip(open(args.hyp, 'r', encoding='utf-8'), open(args.ref, 'r', encoding='utf-8')):  #hypothesis file, reference file
         hyp, ref = (hyp.strip("<s>").strip("</s>").strip(), ref.strip().split())
-        stats += numpy.array(bleu_stats(hyp, ref))
+        stats += numpy.array(bleu_stats(hyp, ref, args.lowercase))
 
     bleu_score, ngram_precisions = bleu(stats)
     print("BLEU: {0:0.2f}".format(bleu_score))

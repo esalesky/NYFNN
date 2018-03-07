@@ -32,13 +32,13 @@ class RNNEncoder(nn.Module):
     def forward(self, src):
         embedded = self.embedding(src)
         output, self.hidden = self.rnn(embedded.view(len(src), 1, -1), self.hidden)
-        return output, self.hidden
+        return output
 
     def init_hidden(self):
-        #dimensions: num_layers, minibatch_size, hidden_dim
+        # dimensions: num_layers, minibatch_size, hidden_dim
         # LSTM needs one variable, GRU needs two - defaults take care of it
-        # result = (Variable(torch.zeros(1, 1, self.hidden_size)),
-        #                    Variable(torch.zeros(1, 1, self.hidden_size)))
+        #result = (Variable(torch.zeros(1, 1, self.hidden_size)),
+        #          Variable(torch.zeros(1, 1, self.hidden_size)))
         result = None
         if use_cuda:
             return result[0].cuda(), result[1].cuda()
@@ -60,14 +60,14 @@ class RNNDecoder(nn.Module):
         self.hidden_size = hidden_size
         self.embedding   = nn.Embedding(vocab_size, embed_size)
         self.num_layers  = num_layers
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
+        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #nn.rnn internally makes input_size=hidden_size for >1 layer
         self.out = nn.Linear(hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=1)  #dim corresponding to vocab
         self.hidden = self.init_hidden()
 
     # Generates entire sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt_len, generate=False):
-        self.hidden = init_hidden
+        self.hidden = init_hidden  #init hidden with last encoder hidden
         decoder_input = Variable(torch.LongTensor([[SOS]]))
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         outputs = []
@@ -90,8 +90,6 @@ class RNNDecoder(nn.Module):
     def __forward_one_word(self, tgt):
         # Map to embeddings - dims are (seq length, batch size, emb size)
         output = self.embedding(tgt).view(1, 1, -1)
-        # Non-linear activation over embeddings
-        output = F.tanh(output)
         # Pass representation through RNN
         output, self.hidden = self.rnn(output, self.hidden)
         # Softmax over the final output state
@@ -150,14 +148,14 @@ class AttnDecoder(nn.Module):
         self.attn = Attn(hidden_size, attn_type="bilinear")
 
         self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size+hidden_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
-        self.out = nn.Linear(embed_size+hidden_size, vocab_size)
+        self.rnn = rnn_factory(rnn_type, input_size=embed_size+hidden_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #nn.rnn internally makes input_size=hidden_size for >1 layer
+        self.out = nn.Linear(2*hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=1)  #dim corresponding to vocab
         self.hidden = self.init_hidden()
 
     # Generates sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt_len, generate=False):
-        self.hidden = init_hidden
+        self.hidden = init_hidden  #init hidden with last encoder hidden
         decoder_context = Variable(torch.zeros(1, self.hidden_size))
 
         decoder_input = Variable(torch.LongTensor([[SOS]]))
@@ -165,7 +163,7 @@ class AttnDecoder(nn.Module):
         outputs = []
         words = []
         for _ in range(tgt_len): #todo: unless teacher forcing, shouldn't this just be until EOS?
-            decoder_output, decoder_context, self.hidden, attn_weights = self.__forward_one_word(decoder_input, decoder_context, self.hidden, encoder_outputs)
+            decoder_output, decoder_context, attn_weights = self.__forward_one_word(decoder_input, decoder_context, encoder_outputs)
             
             _, top_idx = decoder_output.data.topk(1)
             # Recover the value of the top index and wrap in a new variable to break backprop chain
@@ -181,7 +179,7 @@ class AttnDecoder(nn.Module):
         return outputs, words
 
     # Passes a single word through the decoder network
-    def __forward_one_word(self, tgt_word, prev_context, prev_hidden, encoder_outputs):
+    def __forward_one_word(self, tgt_word, prev_context, encoder_outputs):
         embedded = self.embedding(tgt_word).view(1, 1, -1)  #dims are (num words (1), batch size (1), emb size)
 
         rnn_input = torch.cat((embedded, prev_context.unsqueeze(0)), 2)  #concat tgt seed word + context to input to rnn
@@ -195,9 +193,10 @@ class AttnDecoder(nn.Module):
         
         # predict next word using rnn output and context vector
         output = torch.cat((rnn_output, context), 1)  #concat rnn output + context to input to output layer
-        output = self.softmax(self.out(output))
+        output = self.out(output)
+        output = self.softmax(output)
 
-        return output, context, self.hidden, attn_weights
+        return output, context, attn_weights
 
     #Initialize hidden state to a pair of variables for context/hidden
     def init_hidden(self):
@@ -230,7 +229,7 @@ class EncDec(nn.Module):
     # src,tgt currently single sentences
     def _forward(self, src, tgt_len, generate=False):
         self.encoder.hidden = self.encoder.init_hidden()
-        encoder_outputs, encoder_hidden = self.encoder(src)
+        encoder_outputs = self.encoder(src)
         decoder_outputs, words = self.decoder(self.encoder.hidden, encoder_outputs, tgt_len, generate=generate)
         return decoder_outputs, words
 
