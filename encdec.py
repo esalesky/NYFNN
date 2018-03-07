@@ -30,14 +30,16 @@ class RNNEncoder(nn.Module):
                                num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
         self.hidden = None
 
-
    # src is a batch of sentences
     def forward(self, src):
         embedded = self.embedding(src)  # 3D Tensor of size [batch_size x num_hist x emb_size]
-        feat = embedded.view(embedded.size(0), -1) # 2D Tensor of size [batch_size x (num_hist*emb_size)]
-        output, self.hidden = self.rnn(feat, self.hidden)
+        batch_size = embedded.shape[0]
+        #feat = embedded.view(embedded.size(0), -1) # 2D Tensor of size [batch_size x (num_hist*emb_size)]
+        #print("Emb shape: {}".format(embedded.shape))
+        output, self.hidden = self.rnn(embedded, self.hidden)
+        # embedded = self.embedding(src)
+        # output, self.hidden = self.rnn(embedded.view(len(src), 1, -1), self.hidden)
         return output, self.hidden
-
 
     def save(self, fname):
         """Save the model to a pickle file."""
@@ -56,7 +58,7 @@ class RNNDecoder(nn.Module):
         self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #nn.rnn internally makes input_size=hidden_size for >1 layer
         self.out = nn.Linear(hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=1)  #dim corresponding to vocab
-        self.hidden = self.init_hidden()
+        #self.hidden = self.init_hidden()
 
     # Generates entire sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt_len, generate=False):
@@ -92,6 +94,7 @@ class RNNDecoder(nn.Module):
 
     #Initialize hidden state to a pair of variables for context/hidden
     def init_hidden(self):
+        return None
         result = (Variable(torch.zeros(1, 1, self.hidden_size)),
                   Variable(torch.zeros(1, 1, self.hidden_size)))
         if use_cuda:
@@ -213,17 +216,19 @@ class EncDec(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, src, tgt):
-        return self._forward(src, tgt.shape[0])
+    def forward(self, src, tgt, batch_size=1):
+        # TODO tgt.shape[0] may be wrong in this call below
+        return self._forward(src, tgt.shape[0], batch_size)
 
-    def generate(self, src, max_length):
-        return self._forward(src, max_length, generate=True)
+    def generate(self, src, max_length, batch_size=1):
+        return self._forward(src, max_length, batch_size, generate=True)
 
     # src,tgt currently single sentences
-    def _forward(self, src, tgt_len, generate=False):
-        self.encoder.hidden = self.encoder.init_hidden()
-        encoder_outputs = self.encoder(src)
-        decoder_outputs, words = self.decoder(self.encoder.hidden, encoder_outputs, tgt_len, generate=generate)
+    def _forward(self, src, tgt_len, batch_size, generate=False):
+        self.encoder.hidden = self.encoder.init_hidden(batch_size)
+        encoder_outputs, encoder_hidden = self.encoder(src)
+        decoder_outputs, words = \
+            self.decoder(encoder_hidden, encoder_outputs, tgt_len, generate=generate)
         return decoder_outputs, words
 
     def save(self, fname):
