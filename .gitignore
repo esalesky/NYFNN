@@ -1,6 +1,8 @@
 __pycache__
 output/*.jpg
 output/*.txt
+output/*.log
 models/*
 .idea/*
 data/*/*.txt
+external_scripts/nonbreaking_prefixes
