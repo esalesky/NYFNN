@@ -9,6 +9,8 @@ from training import MTTrainer
 import logging
 import logging.config
 from train_monitor import TrainMonitor
+import torch
+import random
 
 def main(args):
     logger = logging.getLogger(__name__)
@@ -29,18 +31,23 @@ def main(args):
         dev_prefix = 'data/examples/debug'
         tst_prefix = 'data/examples/debug'
         file_suffix = ''
+        torch.manual_seed(69)
+        if use_cuda:
+            torch.cuda.manual_seed(69)
+        random.seed(69)
     
     max_num_sents   = int(args.maxnumsents)
+    batch_size = 64
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
-    num_epochs  = 30
+    num_epochs  = 50
     print_every = 50
     plot_every  = 50
     model_every = 20000
     hidden_size = 256  #paper: 1024
     embed_size  = 128  #paper: 500
     
-    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
+    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
     src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
 
@@ -59,7 +66,7 @@ def main(args):
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
         enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
-        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 
     if use_cuda:
@@ -68,7 +75,7 @@ def main(args):
     monitor = TrainMonitor(model, len(train_sents), print_every=print_every, plot_every=plot_every, save_plot_every=plot_every,
                            checkpoint_every=model_every)
 
-    trainer = MTTrainer(model, monitor, optim_type='SGD', learning_rate=0.01)
+    trainer = MTTrainer(model, monitor, optim_type='SGD', batch_size=batch_size, learning_rate=0.01)
 
     trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length, debug=debug)
 

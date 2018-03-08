@@ -1,8 +1,7 @@
 __pycache__
-output/*.jpg
-output/*.txt
-output/*.log
+output/*
 models/*
 .idea/*
 data/*/*.txt
-external_scripts/nonbreaking_prefixes
+*.ipynb
+.ipynb_checkpoints/*

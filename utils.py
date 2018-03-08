@@ -25,7 +25,7 @@ def pair2var(sent_pair):
 def format_time(s):
     h = math.floor(s / 3600)
     s -= h * 3600
-    m = math.floor(s / 60) 
+    m = math.floor(s / 60)
     s -= m * 60
     return '%dh %dm %ds' % (h, m, s)
 
