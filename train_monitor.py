@@ -59,7 +59,7 @@ class PrintCallback(TrainCallback):
             if self.iters % self.print_every == 0:
                 print_loss_avg = self.print_loss_total / self.print_every
                 perc_through_epoch = self.iters / self.iters_per_epoch
-                logger.info('Iter: {} / {}. {}'.format(self.iters, self.iters_per_epoch, time_elapsed(self.start,
+                logger.info('Batch: {} / {}. {}'.format(self.iters, self.iters_per_epoch, time_elapsed(self.start,
                                                                                                    perc_through_epoch)))
                 logger.info('\tLoss: {0:.4f}'.format(print_loss_avg))
                 if self.print_perplexity:

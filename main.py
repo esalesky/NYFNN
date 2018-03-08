@@ -10,11 +10,9 @@ import logging
 import logging.config
 from train_monitor import TrainMonitor
 import torch
+import random
 
 def main(args):
-    torch.manual_seed(69)
-    if use_cuda:
-        torch.cuda.manual_seed(69)
     logger = logging.getLogger(__name__)
     logger.info("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
@@ -27,14 +25,19 @@ def main(args):
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
     file_suffix  = ".txt"
 
-    debug=False
+    debug=True
     if debug:
         train_prefix = 'data/examples/debug'
         dev_prefix = 'data/examples/debug'
         tst_prefix = 'data/examples/debug'
         file_suffix = ''
+        torch.manual_seed(69)
+        if use_cuda:
+            torch.cuda.manual_seed(69)
+        random.seed(69)
     
     max_num_sents   = int(args.maxnumsents)
+    batch_size = 1
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
     num_epochs  = 30
@@ -72,7 +75,7 @@ def main(args):
     monitor = TrainMonitor(model, len(train_sents), print_every=print_every, plot_every=plot_every, save_plot_every=plot_every,
                            checkpoint_every=model_every)
 
-    trainer = MTTrainer(model, monitor, optim_type='SGD', learning_rate=0.01)
+    trainer = MTTrainer(model, monitor, optim_type='SGD', batch_size=batch_size, learning_rate=0.01)
 
     trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length, debug=debug)
 

@@ -15,8 +15,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-random.seed(69)
-
 def optimizer_factory(optim_type, model, **kwargs):
     assert optim_type in ['SGD', 'Adam'], 'Optimizer type not one of currently supported options'
     return getattr(optim, optim_type)(model.parameters(), **kwargs)
@@ -24,13 +22,14 @@ def optimizer_factory(optim_type, model, **kwargs):
 
 class MTTrainer:
 
-    def __init__(self, model, train_monitor, optim_type='SGD', learning_rate=0.01):
+    def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, learning_rate=0.01):
         self.model = model
         self.optimizer = optimizer_factory(optim_type, model, lr=learning_rate)
         # Reduce flag makes this return a loss per patch, necessary for masking
         self.loss_fn = nn.NLLLoss(reduce=False)
         self.use_nllloss = True
         self.monitor = train_monitor
+        self.batch_size = batch_size
 
     def train_step(self, src, tgt, max_length):
 
@@ -72,12 +71,11 @@ class MTTrainer:
     def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
               num_epochs, max_gen_length=100, debug=False):
 
-        batch_size = 64
-        batches = make_batches(train_sents, batch_size)
+        batches = make_batches(train_sents, self.batch_size)
         num_batches = len(batches)
 
         self.monitor.set_iters(num_batches)
-        logger.info("Starting training:")
+        logger.info("Starting training with %d per batch." % self.batch_size)
         self.monitor.start_training()
 
         total_iters = 0
@@ -90,6 +88,7 @@ class MTTrainer:
             for iteration in range(num_batches):
                 src_sent, tgt_sent = pair2var(batches[iteration])
 
+                print("Number of source sentences", src_sent, "Number of target sentences", tgt_sent)
                 max_batch_length = src_sent.size()[1]  # size of longest src sent in batch
                 loss = self.train_step(src_sent, tgt_sent, max_length=max_batch_length)
 
@@ -113,13 +112,15 @@ class MTTrainer:
             avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
             self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
 
-            # tst_output_file = "tst_output_e{0}.txt".format(ep)
-            # avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file)
-            # self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
-
         # todo: evaluate bleu
 
         self.monitor.finish_training()
+
+        tst_output_file = "tst_output_e{0}.txt".format(ep)
+        avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file)
+        self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
+
+
 
     #todo: generation
     def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt'):
