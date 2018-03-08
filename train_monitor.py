@@ -202,6 +202,12 @@ class TrainMonitor(TrainCallback):
         self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=MODEL_PATH))
 
 
+    def set_iters(self, iters_per_epoch):
+        self.iters_per_epoch = iters_per_epoch
+        for c in self.callbacks:
+            c.iters_per_epoch = iters_per_epoch
+
+
     def start_training(self):
         for c in self.callbacks:
             c.start_training()

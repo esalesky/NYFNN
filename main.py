@@ -9,8 +9,12 @@ from training import MTTrainer
 import logging
 import logging.config
 from train_monitor import TrainMonitor
+import torch
 
 def main(args):
+    torch.manual_seed(69)
+    if use_cuda:
+        torch.cuda.manual_seed(69)
     logger = logging.getLogger(__name__)
     logger.info("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 

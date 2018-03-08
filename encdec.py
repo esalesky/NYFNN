@@ -33,13 +33,13 @@ class RNNEncoder(nn.Module):
    # src is a batch of sentences
     def forward(self, src):
         embedded = self.embedding(src)  # 3D Tensor of size [batch_size x num_hist x emb_size]
-        print(embedded.size())
+        #print("Embedding size: ", embedded.size())
         batch_size = embedded.shape[0]
-        print(batch_size)
+        #print(batch_size)
         #feat = embedded.view(embedded.size(0), -1) # 2D Tensor of size [batch_size x (num_hist*emb_size)]
         #print("Emb shape: {}".format(embedded.shape))
         output, self.hidden = self.rnn(embedded, self.hidden)
-        print(output.size(), self.hidden.size())
+        #print(output.size(), self.hidden.size())
         # embedded = self.embedding(src)
         # output, self.hidden = self.rnn(embedded.view(len(src), 1, -1), self.hidden)
         return output, self.hidden
@@ -58,52 +58,56 @@ class RNNDecoder(nn.Module):
         self.hidden_size = hidden_size
         self.embedding   = nn.Embedding(vocab_size, embed_size)
         self.num_layers  = num_layers
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)  #nn.rnn internally makes input_size=hidden_size for >1 layer
+        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, batch_first=True,
+                               num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
         self.out = nn.Linear(hidden_size, vocab_size)
-        self.softmax = nn.LogSoftmax(dim=1)  #dim corresponding to vocab
-        #self.hidden = self.init_hidden()
+        self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
+        self.hidden = None
 
     # Generates entire sequence, up to tgt_len, conditioned on the initial hidden state
+    # Note that this decoder does not use the encoder_outputs at all
     def forward(self, init_hidden, encoder_outputs, tgt_len, generate=False):
-        self.hidden = init_hidden  #init hidden with last encoder hidden
-        decoder_input = Variable(torch.LongTensor([[SOS]]))
+        self.hidden = init_hidden
+        #print("Init hidden state of decoder: ", init_hidden.size())
+        # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
+        decoder_input = Variable(torch.LongTensor(init_hidden.shape[1] * [[SOS]]))
+        #print("Init input to decoder shape: ", decoder_input.size())
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         outputs = []
         words = []
         for _ in range(tgt_len):
-            decoder_output = self.__forward_one_word(decoder_input)
-            _, top_idx = decoder_output.data.topk(1)
+            decoder_outputs = self.__forward_one_word(decoder_input)
+            _, top_idx = decoder_outputs.data.topk(1)
             # Recover the value of the top index and wrap in a new variable to break backprop chain
-            word_idx = top_idx[0][0]
-            decoder_input = Variable(torch.LongTensor([[word_idx]]))
+            word_idx = top_idx.cpu().numpy()
+            # Results in a new decoder input of dims (batch_size, 1)
+            decoder_input = Variable(torch.LongTensor(torch.from_numpy(word_idx))).squeeze(2)
             decoder_input = decoder_input.cuda() if use_cuda else decoder_input
             if generate:
                 words.append(word_idx)
-            outputs.append(decoder_output)
-            if word_idx == EOS:
-                break
+            outputs.append(decoder_outputs.squeeze(1))
+            #print("New input to decoder shape: ", decoder_input.size())
+            # if word_idx == EOS:
+            #     break
         return outputs, words
 
     # Passes a single word through the decoder network
     def __forward_one_word(self, tgt):
         # Map to embeddings - dims are (seq length, batch size, emb size)
-        output = self.embedding(tgt).view(1, 1, -1)
+        batch_size = tgt.shape[0]
+        output = self.embedding(tgt).view(batch_size, 1, -1)
+        #print("Dimensions after embedding layer: ", output.size())
+        # Non-linear activation over embeddings
+        output = F.tanh(output)
+        #print("Dimensions after non-linearity", output.size())
         # Pass representation through RNN
         output, self.hidden = self.rnn(output, self.hidden)
+        #print("Dimensions after RNN", output.size(), self.hidden.size())
         # Softmax over the final output state
-        output = self.softmax(self.out(output[0]))
+        output = self.softmax(self.out(output))
+        #print("Dimensions after softmax", output.size())
 
         return output
-
-    #Initialize hidden state to a pair of variables for context/hidden
-    def init_hidden(self):
-        return None
-        result = (Variable(torch.zeros(1, 1, self.hidden_size)),
-                  Variable(torch.zeros(1, 1, self.hidden_size)))
-        if use_cuda:
-            return result[0].cuda(), result[1].cuda()
-        else:
-            return result
 
     def save(self, fname):
         """Save the model to a pickle file."""
@@ -221,13 +225,16 @@ class EncDec(nn.Module):
 
     def forward(self, src, tgt, batch_size=1):
         # TODO tgt.shape[0] may be wrong in this call below
-        return self._forward(src, tgt.shape[0], batch_size)
+        return self._forward(src, tgt.shape[1], batch_size)
 
     def generate(self, src, max_length, batch_size=1):
-        return self._forward(src, max_length, batch_size, generate=True)
+        return self._forward(src, max_length, generate=True)
 
     # src,tgt currently single sentences
-    def _forward(self, src, tgt_len, batch_size, generate=False):
+    def _forward(self, src, tgt_len, generate=False):
+        batch_size = src.shape[0]
+        #print("Source shape: ", src.shape)
+        #print("Batch size: ", batch_size)
         self.encoder.hidden = self.encoder.init_hidden(batch_size)
         encoder_outputs, encoder_hidden = self.encoder(src)
         decoder_outputs, words = \
