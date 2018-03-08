@@ -77,26 +77,19 @@ class RNNDecoder(nn.Module):
             if generate:
                 words.append(word_idx)
             outputs.append(decoder_outputs.squeeze(1))
-            #print("New input to decoder shape: ", decoder_input.size())
-            # if word_idx == EOS:
-            #     break
         return outputs, words
 
     # Passes a single word through the decoder network
     def __forward_one_word(self, tgt):
-        # Map to embeddings - dims are (seq length, batch size, emb size)
+        # Map to embeddings - dims are (batch size, seq length, emb size)
         batch_size = tgt.shape[0]
         output = self.embedding(tgt).view(batch_size, 1, -1)
-        #print("Dimensions after embedding layer: ", output.size())
         # Non-linear activation over embeddings
         output = F.tanh(output)
-        #print("Dimensions after non-linearity", output.size())
         # Pass representation through RNN
         output, self.hidden = self.rnn(output, self.hidden)
-        #print("Dimensions after RNN", output.size(), self.hidden.size())
         # Softmax over the final output state
         output = self.softmax(self.out(output))
-        #print("Dimensions after softmax", output.size())
 
         return output
 
@@ -224,8 +217,6 @@ class EncDec(nn.Module):
     # src,tgt currently single sentences
     def _forward(self, src, tgt_len, generate=False):
         batch_size = src.shape[0]
-        print("Source shape: ", src.shape)
-        print("Batch size: ", batch_size)
         self.encoder.hidden = None #self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
         decoder_outputs, words = \

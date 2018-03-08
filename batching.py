@@ -39,9 +39,9 @@ def get_batch_idxs(sent_pairs, batch_size):
     # Go through and find the indexes to make batches <= batch_size
     for n_words, n_sentences in src_len_counts.items():
         total_sentences += n_sentences
-        while(last_i + 64 < total_sentences):
-            batch_idxs.append((last_i, last_i + 64))
-            last_i += 64
+        while(last_i + batch_size < total_sentences):
+            batch_idxs.append((last_i, last_i + batch_size))
+            last_i += batch_size
         batch_idxs.append((last_i, total_sentences))
         last_i = total_sentences
 

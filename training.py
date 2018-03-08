@@ -88,7 +88,6 @@ class MTTrainer:
             for iteration in range(num_batches):
                 src_sent, tgt_sent = pair2var(batches[iteration])
 
-                print("Number of source sentences", src_sent, "Number of target sentences", tgt_sent)
                 max_batch_length = src_sent.size()[1]  # size of longest src sent in batch
                 loss = self.train_step(src_sent, tgt_sent, max_length=max_batch_length)
 

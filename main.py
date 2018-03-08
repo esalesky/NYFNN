@@ -37,7 +37,7 @@ def main(args):
         random.seed(69)
     
     max_num_sents   = int(args.maxnumsents)
-    batch_size = 1
+    batch_size = 64
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
     num_epochs  = 30
