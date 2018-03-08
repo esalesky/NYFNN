@@ -94,7 +94,7 @@ class SentencePair:
 
 # reads parallel data where format is one sentence per line, filename prefix.lang
 # expectation is file does not have SOS/EOS symbols
-def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src_vocab, tgt_vocab, max_sent_length, min_sent_length):
+def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src_vocab, tgt_vocab, max_sent_length, min_sent_length, sort):
     src_file = file_prefix + "." + src_lang + file_suffix
     tgt_file = file_prefix + "." + tgt_lang + file_suffix
 
@@ -125,7 +125,10 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
     tgt_vocab.set_unk(UNK_TOKEN)
 
     # Sort the sentence pairs
-    sents = SortedList([*map(SentencePair, sents)])[:]
+    if sort:
+        sents = SortedList([*map(SentencePair, sents)])[:]
+    else:
+        sents = [*map(SentencePair, sents)]
 
     return src_vocab, tgt_vocab, sents
 
@@ -142,10 +145,10 @@ def clean(line):
 
 
 def input_reader(file_prefix, src, tgt, max_num_sents,
-                 max_sent_length=100, src_vocab=None, tgt_vocab=None, file_suffix=''):
+                 max_sent_length=100, src_vocab=None, tgt_vocab=None, file_suffix='', sort=False):
 
     src_vocab, tgt_vocab, sents = read_corpus(file_prefix, file_suffix, src, tgt, max_num_sents,
-                                              src_vocab, tgt_vocab, max_sent_length, min_sent_length=1)
+                                              src_vocab, tgt_vocab, max_sent_length, min_sent_length=1, sort=sort)
 
     if src_vocab is None:
         logger.info("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(),

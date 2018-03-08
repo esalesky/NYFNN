@@ -35,30 +35,24 @@ class MTTrainer:
 
         self.optimizer.zero_grad()
         loss = 0.0
-        #print("Source shape", src.shape, "Target shape", tgt.shape)
         # Dimensions are (batch_size, sequence_length)
         tgt_length = tgt.shape[1]
-        # print("Target length: ", tgt_length)
         decoder_scores, words = self.model(src, tgt)
-        # print(len(decoder_scores))
-        # print(decoder_scores[0].shape)
-        # print(tgt)
 
         # Compute masks by looking at # of EOS symbols in each sentence, then create masks with (# EOS - 1) 0's at end
         padding = tgt.eq(EOS).sum(1).sub(1)
         masks = Variable(torch.FloatTensor([[[1] * (tgt_length - i) + [0] * i] for i in padding.data])).squeeze(1)
         if use_cuda:
             masks = masks.cuda()
-        #print("Masks: ", masks.shape)
 
         for gen, ref, mask in zip(decoder_scores, tgt.transpose(0, 1), masks.transpose(0, 1)):
-            # print("Mask", mask)
-            # print(gen.size(), ref.size())
             losses = self.loss_fn(gen, ref)
             losses = losses * mask
-            # print(losses.mean())
-            # loss += losses.
-            loss += losses.mean()
+            # Only average over the non-zero losses from the mask
+            zeros = mask.eq(0).sum()
+            denom = losses.shape[0] - zeros.data[0]
+            avg_loss = losses.sum() / denom
+            loss += avg_loss
 
         # todo: lecture 2/20 re loss fns. pre-train with teacher forcing, finalize using own predictions
 
@@ -133,7 +127,6 @@ class MTTrainer:
             tgt_ref = sent[1]
             sent_var = pair2var(sent)
             src_words = [src_vocab.idx2word[i] for i in src_ref]
-            tgt_words = [tgt_vocab.idx2word[i] for i in tgt_ref]
             scores, predicted = self.model.generate(sent_var[0].view(1, len(src_words)), max_gen_length)
             # todo: Either we should batch generation (possible?) or when we make the generate method,
             # todo: don't have it spit out 3d arrays

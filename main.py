@@ -25,7 +25,7 @@ def main(args):
     tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
     file_suffix  = ".txt"
 
-    debug=True
+    debug=False
     if debug:
         train_prefix = 'data/examples/debug'
         dev_prefix = 'data/examples/debug'
@@ -40,14 +40,14 @@ def main(args):
     batch_size = 64
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
-    num_epochs  = 30
+    num_epochs  = 50
     print_every = 50
     plot_every  = 50
     model_every = 20000
     hidden_size = 256  #paper: 1024
     embed_size  = 128  #paper: 500
     
-    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix)
+    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
     src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
 
