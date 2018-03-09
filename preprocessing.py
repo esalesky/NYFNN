@@ -112,7 +112,7 @@ def read_corpus(file_prefix, file_suffix, src_lang, tgt_lang, max_num_sents, src
             tgt_sent = clean(tgt_sent)
             if keep_pair((src_sent, tgt_sent), max_sent_length, min_sent_length):
                 src_sent = [SOS] + [src_vocab.map2idx(w) for w in src_sent] + [EOS]
-                tgt_sent = [SOS] + [tgt_vocab.map2idx(w) for w in tgt_sent] + [EOS]
+                tgt_sent = [tgt_vocab.map2idx(w) for w in tgt_sent] + [EOS]
                 sents.append((src_sent, tgt_sent))
                 if len(sents) >= max_num_sents:
                     break

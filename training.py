@@ -37,7 +37,7 @@ class MTTrainer:
         loss = 0.0
         # Dimensions are (batch_size, sequence_length)
         tgt_length = tgt.shape[1]
-        decoder_scores, words = self.model(src, tgt)
+        decoder_scores = self.model(src, tgt)
 
         # Compute masks by looking at # of EOS symbols in each sentence, then create masks with (# EOS - 1) 0's at end
         padding = tgt.eq(EOS).sum(1).sub(1)
@@ -128,9 +128,7 @@ class MTTrainer:
             sent_var = pair2var(sent)
             src_words = [src_vocab.idx2word[i] for i in src_ref]
             scores, predicted = self.model.generate(sent_var[0].view(1, len(src_words)), max_gen_length)
-            # todo: Either we should batch generation (possible?) or when we make the generate method,
-            # todo: don't have it spit out 3d arrays
-            predicted_words = [tgt_vocab.idx2word[i[0][0][0]] for i in predicted]
+            predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
             if EOS_TOKEN in predicted_words:
                 eos_index = predicted_words.index(EOS_TOKEN) + 1
                 predicted_words = predicted_words[:eos_index]

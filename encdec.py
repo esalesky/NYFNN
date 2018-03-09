@@ -57,16 +57,36 @@ class RNNDecoder(nn.Module):
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
         self.hidden = None
 
-    # Generates entire sequence, up to tgt_len, conditioned on the initial hidden state
+    # Performs forward pass for a batch of sentences through the decoder using teacher forcing.
     # Note that this decoder does not use the encoder_outputs at all
-    def forward(self, init_hidden, encoder_outputs, tgt_len, generate=False):
+    def forward(self, init_hidden, encoder_outputs, tgt):
         self.hidden = init_hidden # init hidden state with last encoder hidden
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
+        batch_size = init_hidden.shape[1]
+        decoder_input = Variable(torch.LongTensor(batch_size * [[SOS]]))
+        decoder_input = decoder_input.cuda() if use_cuda else decoder_input
+        outputs = []
+        tgt_len = tgt.shape[1]
+        tgt = tgt.transpose(0, 1)
+        for i in range(tgt_len):
+            decoder_outputs = self.__forward_one_word(decoder_input)
+            _, top_idx = decoder_outputs.data.topk(1)
+            # todo: potentially make teacher forcing optional/stochastic
+            decoder_input = tgt[i]
+            outputs.append(decoder_outputs.squeeze(1))
+        return outputs
+
+    # Generates entire sequence, up to max_gen_length, conditioned on initial hidden state.
+    # Note that this decoder does not use the encoder outputs at all
+    def generate(self, init_hidden, encoder_outputs, max_gen_length):
+        self.hidden = init_hidden # init hidden state with last encoder hidden
+        # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
+        # Note that during generation, the batch size should always be 1
         decoder_input = Variable(torch.LongTensor(init_hidden.shape[1] * [[SOS]]))
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         outputs = []
         words = []
-        for _ in range(tgt_len):
+        for _ in range(max_gen_length):
             decoder_outputs = self.__forward_one_word(decoder_input)
             _, top_idx = decoder_outputs.data.topk(1)
             # Recover the value of the top index and wrap in a new variable to break backprop chain
@@ -74,9 +94,11 @@ class RNNDecoder(nn.Module):
             # Results in a new decoder input of dims (batch_size, 1)
             decoder_input = Variable(torch.LongTensor(torch.from_numpy(word_idx))).squeeze(2)
             decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-            if generate:
-                words.append(word_idx)
             outputs.append(decoder_outputs.squeeze(1))
+            words.append(word_idx[0][0][0])
+            if word_idx == EOS:
+                break
+
         return outputs, words
 
     # Passes a single word through the decoder network
@@ -209,19 +231,17 @@ class EncDec(nn.Module):
 
     def forward(self, src, tgt):
         # TODO tgt.shape[0] may be wrong in this call below
-        return self._forward(src, tgt.shape[1])
+        self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
+        encoder_outputs = self.encoder(src)
+        decoder_outputs = self.decoder(self.encoder.hidden, encoder_outputs, tgt)
+        return decoder_outputs
 
     def generate(self, src, max_length):
-        return self._forward(src, max_length, generate=True)
-
-    # src,tgt currently single sentences
-    def _forward(self, src, tgt_len, generate=False):
-        batch_size = src.shape[0]
-        self.encoder.hidden = None #self.encoder.init_hidden(batch_size)
+        self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
-        decoder_outputs, words = \
-            self.decoder(self.encoder.hidden, encoder_outputs, tgt_len, generate=generate)
-        return decoder_outputs, words
+        words = self.decoder.generate(self.encoder.hidden, encoder_outputs, max_gen_length=max_length)
+        return words
+
 
     def save(self, fname):
         """Save the model to a pickle file."""
