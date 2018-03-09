@@ -9,10 +9,10 @@ def main(args):
     prefix = args.dirname  #path to dir to convert, ie data/en-{cs,de}
     files = [f for f in listdir(prefix)]
     files.remove("README")
-    transformer = CzechMorphologyTransformer(args.dictionary, args.tagger)
+    transformer = CzechMorphologyTransformer(args.dictionary, args.tagger, mode='tokenize')
     for f in files:
         if f.endswith(".cs.txt"):
-            outfile = open(prefix + f.replace(".txt", "") + "-morph.txt", "w+", encoding='utf-8')
+            outfile = open(prefix + f.replace(".txt", "") + "-tokenized.txt", "w+", encoding='utf-8')
             convert(prefix + f, outfile, transformer)
             outfile.close()
 
