@@ -20,7 +20,6 @@ binmode(STDIN, ":utf8");
 binmode(STDOUT, ":utf8");
 
 use warnings;
-#use FindBin qw($RealBin);
 use strict;
 use Time::HiRes;
 
@@ -29,8 +28,9 @@ if  (eval {require Thread;1;}) {
   Thread->import();
 }
 
-#my $mydir = "$RealBin/../share/nonbreaking_prefixes";
-$mydir = "./nonbreaking_prefixes";
+use File::Basename qw();
+my ($name, $path, $suffix) = File::Basename::fileparse($0);
+my $mydir = "$path/nonbreaking_prefixes";
 
 my %NONBREAKING_PREFIX = ();
 my @protected_patterns = ();

@@ -1,6 +1,8 @@
 """Main file for 11-747 Project. By Alex Coda, Andrew Runge, & Liz Salesky."""
 import argparse
 import pickle
+import torch
+import random
 
 from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder
 from preprocessing import input_reader
@@ -20,11 +22,6 @@ def main(args):
     tgt_lang = 'cs'  #cs or de
     pair = "en-" + tgt_lang
 
-    train_prefix = 'data/'+pair+'/train.tags.'+pair
-    dev_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2012.'+pair
-    tst_prefix   = 'data/'+pair+'/IWSLT16.TED.tst2013.'+pair
-    file_suffix  = ".txt"
-
     debug=False
     if debug:
         train_prefix = 'data/examples/debug'
@@ -35,12 +32,17 @@ def main(args):
         if use_cuda:
             torch.cuda.manual_seed(69)
         random.seed(69)
+    else:
+        train_prefix = 'data/{}/bped/train.tags.{}'.format(pair, pair)
+        dev_prefix   = 'data/{}/bped/IWSLT16.TED.tst2012.{}'.format(pair, pair)
+        tst_prefix   = 'data/{}/bped/IWSLT16.TED.tst2013.{}'.format(pair, pair)
+        file_suffix  = ".tok.bpe"
     
-    max_num_sents   = int(args.maxnumsents)
+    max_num_sents = int(args.maxnumsents)
     batch_size = 64
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
-    num_epochs  = 50
+    num_epochs  = 30
     print_every = 50
     plot_every  = 50
     model_every = 20000
@@ -66,6 +68,7 @@ def main(args):
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
         enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+#        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 

@@ -1,7 +1,10 @@
 __pycache__
 output/*
 models/*
-.idea/*
 data/*/*.txt
+data/*/*/*
+.idea/*
 *.ipynb
 .ipynb_checkpoints/*
+external_scripts/nonbreaking_prefixes/*
+.DS_Store
