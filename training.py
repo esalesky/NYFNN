@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch import optim
 from torch.autograd import Variable
+from torch.optim import lr_scheduler
 
 #local imports
 from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH, OUTPUT_PATH
@@ -25,8 +26,10 @@ class MTTrainer:
     def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, learning_rate=0.01):
         self.model = model
         self.optimizer = optimizer_factory(optim_type, model, lr=learning_rate)
+        # Decay learning rate by a factor of 0.5 (gamma) every 10 epochs (step_size)
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
         # Reduce flag makes this return a loss per patch, necessary for masking
-        self.loss_fn = nn.NLLLoss(reduce=False)
+        self.loss_fn = nn.NLLLoss(reduce=False)  #todo: nn.CrossEntropyLoss
         self.use_nllloss = True
         self.monitor = train_monitor
         self.batch_size = batch_size
@@ -77,8 +80,13 @@ class MTTrainer:
         
         for ep in range(num_epochs):
             logger.info("Epoch %d:" % ep)
+            self.scheduler.step()  #lr scheduler epoch+=1
+
+            if ep % 10 == 0 and ep>0:
+                logger.info("Updating learning rate: {}".format(self.scheduler.get_lr()))
+
             if not debug:
-                random.shuffle(batches) #note: should shuffle within batch when batching
+                random.shuffle(batches)
 
             for iteration in range(num_batches):
                 src_sent, tgt_sent = pair2var(batches[iteration])
@@ -105,7 +113,7 @@ class MTTrainer:
             dev_output_file = "dev_output_e{0}.txt".format(ep)
             avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
             self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
-
+            
         # todo: evaluate bleu
 
         self.monitor.finish_training()
