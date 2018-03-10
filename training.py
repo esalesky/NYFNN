@@ -57,6 +57,7 @@ class MTTrainer:
         # todo: lecture 2/20 re loss fns. pre-train with teacher forcing, finalize using own predictions
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0) #gradient clipping
         self.optimizer.step()
 
         # Normalize loss by target length
