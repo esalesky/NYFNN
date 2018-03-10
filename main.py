@@ -39,15 +39,15 @@ def main(args):
         file_suffix  = ".tok.bpe"
     
     max_num_sents = int(args.maxnumsents)
-    batch_size = 64
+    batch_size = 80
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 20000
-    hidden_size = 256  #paper: 1024
-    embed_size  = 128  #paper: 500
+    model_every = 500
+    hidden_size = 1024  #paper: 1024
+    embed_size  = 500   #paper: 500
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
@@ -78,7 +78,7 @@ def main(args):
     monitor = TrainMonitor(model, len(train_sents), print_every=print_every, plot_every=plot_every, save_plot_every=plot_every,
                            checkpoint_every=model_every)
 
-    trainer = MTTrainer(model, monitor, optim_type='SGD', batch_size=batch_size, learning_rate=0.01)
+    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size, learning_rate=0.0001)
 
     trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length, debug=debug)
 
