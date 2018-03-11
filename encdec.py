@@ -129,31 +129,19 @@ class Attn(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
-    def forward(self, hidden, encoder_outputs):
-        batch_size = encoder_outputs.shape[0]
-        src_len = encoder_outputs.shape[1]
-        # print("Batch size in attention", batch_size)
-        attn_weights = Variable(torch.zeros(src_len, batch_size))
-        # print("Shape of attention weights", attn_weights.shape)
-
-        if use_cuda:
-            attn_weights = attn_weights.cuda()
+    def forward(self, hidden, attn_scores):
+        batch_size = attn_scores.shape[0]
 
         # calculate attn_score against each output in encoder_outputs
-        # todo: make more efficient by computing attention score once over the concatenated matrix H(src)
-
-        # attn_scores = self.linear(encoder_outputs)
-        # attn_weights = attn_scores.bmm(hidden.view(batch_size, -1, 1)).squeeze(2)#hidden.bmm(attn_scores.view(batch_size, -1, src_len)).squeeze(1)
-        encoder_outputs = encoder_outputs.transpose(0, 1)
-        for i in range(src_len):
-            attn_score = self.linear(encoder_outputs[i])  #h(src)T * W
-            attn_weight = hidden.bmm(attn_score.view(batch_size, -1, 1)).squeeze(1) #[h(src)T*W] * h(tgt)
-            attn_weights[i] = attn_weight
+        attn_weights = attn_scores.bmm(hidden.view(batch_size, -1, 1)).squeeze(2)
 
         # Resulting dims are (batch size, seq len)
-        attn_weights = self.softmax(attn_weights.transpose(0, 1))#.transpose(0, 1)
+        attn_weights = self.softmax(attn_weights)
         # normalize weights and resize to batch_size x 1 x src len
         return attn_weights.unsqueeze(1)
+
+    def calc_attn_scores(self, encoder_outputs):
+        return self.linear(encoder_outputs)
 
 
 class AttnDecoder(nn.Module):
@@ -177,12 +165,6 @@ class AttnDecoder(nn.Module):
 
     # Generates sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt, generate=False):
-        # print("Encoder outputs shape", encoder_outputs.shape)
-        self.hidden = init_hidden  #init hidden with last encoder hidden
-        # decoder_context = Variable(torch.zeros(1, self.hidden_size))
-        # decoder_input = Variable(torch.LongTensor([[SOS]]))
-        # decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-        # outputs = []
         self.hidden = init_hidden # init hidden state with last encoder hidden
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
         batch_size = init_hidden.shape[1]
@@ -193,22 +175,14 @@ class AttnDecoder(nn.Module):
         outputs = []
         tgt_len = tgt.shape[1]
         tgt = tgt.transpose(0, 1)
-        for i in range(tgt_len): #todo: unless teacher forcing, shouldn't this just be until EOS?
-            decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts, encoder_outputs)
+        attn_scores = self.attn.calc_attn_scores(encoder_outputs)
+        for i in range(tgt_len):
+            decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts,
+                                                                                      encoder_outputs, attn_scores)
             _, top_idx = decoder_outputs.data.topk(1)
             # todo: potentially make teacher forcing optional/stochastic
             decoder_input = tgt[i]
             outputs.append(decoder_outputs.squeeze(1))
-            # _, top_idx = decoder_output.data.topk(1)
-            # # Recover the value of the top index and wrap in a new variable to break backprop chain
-            # word_idx = top_idx[0][0]
-            # decoder_input = Variable(torch.LongTensor([[word_idx]]))
-            # decoder_input = decoder_input.cuda() if use_cuda else decoder_input
-            # if generate:
-            #     words.append(word_idx)
-            # outputs.append(decoder_output)
-            # if word_idx == EOS:
-            #     break
 
         return outputs
 
@@ -224,8 +198,10 @@ class AttnDecoder(nn.Module):
         decoder_contexts = decoder_contexts.cuda() if use_cuda else decoder_contexts
         outputs = []
         words = []
+        attn_scores = self.attn.calc_attn_scores(encoder_outputs)
         for _ in range(max_gen_length):
-            decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts, encoder_outputs)
+            decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts,
+                                                                                      encoder_outputs, attn_scores)
             _, top_idx = decoder_outputs.data.topk(1)
             # Recover the value of the top index and wrap in a new variable to break backprop chain
             word_idx = top_idx.cpu().numpy()
@@ -240,31 +216,21 @@ class AttnDecoder(nn.Module):
         return outputs, words
 
     # Passes a single word through the decoder network
-    def __forward_one_word(self, tgt_word, prev_context, encoder_outputs):
+    def __forward_one_word(self, tgt_word, prev_context, encoder_outputs, attn_scores):
 
         batch_size = tgt_word.shape[0]
         embedded = self.embedding(tgt_word).view(batch_size, 1, -1)  #dims are (batch size, num words (1), emb size)
 
-        # print("Shape after embedding layer", embedded.shape)
-        # print("Context shape", prev_context.shape)
         rnn_input = torch.cat((embedded, prev_context), 2)  #concat tgt seed word + context to input to rnn
-        # print("RNN input shape", rnn_input.shape)
         rnn_output, self.hidden = self.rnn(rnn_input, self.hidden)
-        # rnn_output = rnn_output  #collapse num words dim
-        # print("RNN output shape", rnn_output.shape)
 
         # calculate attn against each encoder outputs
-        attn_weights = self.attn(rnn_output, encoder_outputs)
-        # print("Attention shape", attn_weights.shape)
+        attn_weights = self.attn(rnn_output, attn_scores)
 
-        context = attn_weights.bmm(encoder_outputs)  #swaps encoder dims for multiply: src_len x batch_size x hidden_size -> batch_size x src_len x hidden_size
-        # context = context  #collapse num words dim
-
-        # print("RNN context output shape", context.shape)
+        context = attn_weights.bmm(encoder_outputs)  # src_len x batch_size x hidden_size -> batch_size x src_len x hidden_size
 
         # predict next word using rnn output and context vector
         output = torch.cat((rnn_output, context), 2)  #concat rnn output + context to input to output layer
-        # print("Concatenated rnn output and context shape", output.shape)
         output = self.out(output)
         output = self.softmax(output)
 
