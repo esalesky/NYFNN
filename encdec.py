@@ -122,12 +122,13 @@ class RNNDecoder(nn.Module):
 
 
 class Attn(nn.Module):
-    def __init__(self, hidden_size, attn_type):
+    def __init__(self, input_size, hidden_size, attn_type):
         super(Attn, self).__init__()
         self.attn_type = attn_type  #bilinear, h(src)T * W * h(tgt)
+        self.input_size = input_size
         self.hidden_size = hidden_size
         self.softmax = nn.Softmax(dim=1)
-        self.linear = nn.Linear(self.hidden_size, self.hidden_size)
+        self.linear = nn.Linear(self.input_size, self.hidden_size)
 
     def forward(self, hidden, attn_scores):
         batch_size = attn_scores.shape[0]
@@ -146,28 +147,35 @@ class Attn(nn.Module):
 
 class AttnDecoder(nn.Module):
     """attention layer on top of basic decoder"""
-    def __init__(self, vocab_size, embed_size, hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False):
+    def __init__(self, enc_size, vocab_size, embed_size, hidden_size, rnn_type='GRU', num_layers=1, bidirectional_enc=False):
         super(AttnDecoder, self).__init__()
         self.vocab_size = vocab_size  #target vocab size
         self.hidden_size = hidden_size
         #self.max_src_length = max_src_length  #todo: preallocate mem for longest src sent? would this actually be helpful?
         self.num_layers  = num_layers
-
-        self.attn = Attn(hidden_size, attn_type="bilinear")
+        self.bidirectional_enc = bidirectional_enc
+        self.enc_size = enc_size
+        if bidirectional_enc:
+            self.enc_size = enc_size * 2
+        self.attn = Attn(self.enc_size, hidden_size, attn_type="bilinear")
 
         self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.linear = nn.Linear(enc_size, hidden_size)
         # nn.rnn internally makes input_size=hidden_size for >1 layer
         self.rnn = rnn_factory(rnn_type, input_size=embed_size+hidden_size, hidden_size=hidden_size, batch_first=True,
-                               num_layers=num_layers, bidirectional=bidirectional)
+                               num_layers=num_layers, bidirectional=False)
         self.out = nn.Linear(2*hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
         self.hidden = None
 
     # Generates sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt, generate=False):
-        self.hidden = init_hidden # init hidden state with last encoder hidden
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
         batch_size = init_hidden.shape[1]
+        if self.bidirectional_enc:
+            self.hidden = torch.cat((init_hidden[0], init_hidden[1]), 1).view(1, batch_size, -1)
+        else:
+            self.hidden = init_hidden
         decoder_input = Variable(torch.LongTensor(batch_size * [[SOS]]))
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         decoder_contexts = Variable(torch.zeros(batch_size, 1, self.hidden_size))
@@ -189,9 +197,12 @@ class AttnDecoder(nn.Module):
     # Generates entire sequence, up to max_gen_length, conditioned on initial hidden state.
     # Note that this decoder does not use the encoder outputs at all
     def generate(self, init_hidden, encoder_outputs, max_gen_length):
-        self.hidden = init_hidden # init hidden state with last encoder hidden
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
         # Note that during generation, the batch size should always be 1
+        if self.bidirectional_enc:
+            self.hidden = torch.cat((init_hidden[0], init_hidden[1]), 1).view(1, 1, -1)
+        else:
+            self.hidden = init_hidden
         decoder_input = Variable(torch.LongTensor(init_hidden.shape[1] * [[SOS]]))
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         decoder_contexts = Variable(torch.zeros(1, 1, self.hidden_size))

@@ -22,8 +22,8 @@ def main(args):
     tgt_lang = 'cs'  #cs or de
     pair = "en-" + tgt_lang
 
-    debug=True
-    fixed_seeds=True
+    debug=False
+    fixed_seeds=False
     if debug:
         train_prefix = 'data/examples/debug'
         dev_prefix = 'data/examples/debug'
@@ -48,7 +48,11 @@ def main(args):
     print_every = 50
     plot_every  = 50
     model_every = 500
-    hidden_size = 1024  #paper: 1024
+    bi_enc = True
+    enc_hidden_size = 1024
+    if bi_enc:
+        enc_hidden_size = int(enc_hidden_size / 2)
+    dec_hidden_size = 1024  #paper: 1024
     embed_size  = 500   #paper: 500
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
@@ -69,8 +73,8 @@ def main(args):
         tgt_vocab.save("models/tgt-vocab_" + pair + "_maxnum" + str(max_num_sents) +
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
-        enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
-        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=enc_hidden_size, rnn_type='GRU', num_layers=1, bidirectional=bi_enc)
+        dec = AttnDecoder(enc_size=enc_hidden_size, vocab_size=output_size, embed_size=embed_size, hidden_size=dec_hidden_size, rnn_type='GRU', num_layers=1, bidirectional_enc=bi_enc)
         # dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 

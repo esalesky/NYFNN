@@ -190,15 +190,15 @@ class TrainMonitor(TrainCallback):
         self.callbacks.append(PlotCallback(iters_per_epoch, 'train', 'train_loss', plot_every=plot_every,
                                            save_every=save_plot_every, perplexity_file='train_perplexity'))
         # Want to plot dev loss every time we compute it in trainer, so plot every time we run the checkpoint
-        self.callbacks.append(PlotCallback(iters_per_epoch, 'dev-cp', 'dev_loss', plot_every=1, plot_scale=checkpoint_every,
-                                           save_every=1, perplexity_file='dev_perplexity'))
+        # self.callbacks.append(PlotCallback(iters_per_epoch, 'dev-cp', 'dev_loss', plot_every=1, plot_scale=checkpoint_every,
+        #                                    save_every=1, perplexity_file='dev_perplexity'))
         # Plot dev loss and perplexity once per epoch
         self.callbacks.append(PlotCallback(iters_per_epoch, 'dev', 'dev_epoch_loss',
                                            perplexity_file='dev_epoch_perplexity'))
-        # Save model
-        self.callbacks.append(SaveModelCallback(iters_per_epoch, 'train', model, model_path=MODEL_PATH,
-                                                save_every=checkpoint_every))
-        # Save model
+        # # Save model
+        # self.callbacks.append(SaveModelCallback(iters_per_epoch, 'train', model, model_path=MODEL_PATH,
+        #                                         save_every=checkpoint_every))
+        # # Save model
         self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=MODEL_PATH))
 
 
