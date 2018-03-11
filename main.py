@@ -49,6 +49,7 @@ def main(args):
     plot_every  = 50
     model_every = 500
     bi_enc = True
+    # Encoder and decoder hidden size must change together
     enc_hidden_size = 1024
     if bi_enc:
         enc_hidden_size = int(enc_hidden_size / 2)

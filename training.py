@@ -89,6 +89,7 @@ class MTTrainer:
                 random.shuffle(batches)
 
             for iteration in range(num_batches):
+                torch.cuda.empty_cache()
                 src_sent, tgt_sent = pair2var(batches[iteration])
 
                 max_batch_length = src_sent.size()[1]  # size of longest src sent in batch

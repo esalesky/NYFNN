@@ -158,4 +158,4 @@ def input_reader(file_prefix, src, tgt, max_num_sents,
 
 #true if sent should not be filtered
 def keep_pair(p, max_sent_length, min_sent_length):
-    return min_sent_length <= len(p[min_sent_length]) <= max_sent_length and min_sent_length <= len(p[1]) <= max_sent_length
+    return min_sent_length <= len(p[0]) <= max_sent_length and min_sent_length <= len(p[1]) <= max_sent_length
