@@ -22,21 +22,23 @@ def main(args):
     tgt_lang = 'cs'  #cs or de
     pair = "en-" + tgt_lang
 
-    debug=False
+    debug=True
+    fixed_seeds=True
     if debug:
         train_prefix = 'data/examples/debug'
         dev_prefix = 'data/examples/debug'
         tst_prefix = 'data/examples/debug'
         file_suffix = ''
-        torch.manual_seed(69)
-        if use_cuda:
-            torch.cuda.manual_seed(69)
-        random.seed(69)
     else:
         train_prefix = 'data/{}/bped/train.tags.{}'.format(pair, pair)
         dev_prefix   = 'data/{}/bped/IWSLT16.TED.tst2012.{}'.format(pair, pair)
         tst_prefix   = 'data/{}/bped/IWSLT16.TED.tst2013.{}'.format(pair, pair)
         file_suffix  = ".tok.bpe"
+    if fixed_seeds:
+        torch.manual_seed(69)
+        if use_cuda:
+            torch.cuda.manual_seed(69)
+        random.seed(69)
     
     max_num_sents = int(args.maxnumsents)
     batch_size = 80
@@ -68,8 +70,8 @@ def main(args):
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
         enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
-#        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
-        dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        dec = AttnDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        # dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 
     if use_cuda:

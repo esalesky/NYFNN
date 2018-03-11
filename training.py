@@ -29,7 +29,7 @@ class MTTrainer:
         # Decay learning rate by a factor of 0.5 (gamma) every 10 epochs (step_size)
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
         # Reduce flag makes this return a loss per patch, necessary for masking
-        self.loss_fn = nn.NLLLoss(reduce=False)  #todo: nn.CrossEntropyLoss
+        self.loss_fn = nn.NLLLoss(reduce=False)
         self.use_nllloss = True
         self.monitor = train_monitor
         self.batch_size = batch_size
@@ -73,7 +73,7 @@ class MTTrainer:
         num_batches = len(batches)
 
         self.monitor.set_iters(num_batches)
-        logger.info("Starting training with %d per batch." % self.batch_size)
+        logger.info("Starting training with %d per batch, %d total batches." % (self.batch_size, num_batches))
         self.monitor.start_training()
 
         total_iters = 0
@@ -141,7 +141,6 @@ class MTTrainer:
             if EOS_TOKEN in predicted_words:
                 eos_index = predicted_words.index(EOS_TOKEN) + 1
                 predicted_words = predicted_words[:eos_index]
-            # logger.info("Predicted:", predicted_words, "  Truth: ", tgt_words)
             output.append(" ".join(predicted_words))
             for gen, ref in zip(scores, sent_var[1]):
                 loss = self.loss_fn(gen, ref).mean()
