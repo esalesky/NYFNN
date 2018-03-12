@@ -147,7 +147,8 @@ class Attn(nn.Module):
 
 class AttnDecoder(nn.Module):
     """attention layer on top of basic decoder"""
-    def __init__(self, enc_size, vocab_size, embed_size, hidden_size, rnn_type='GRU', num_layers=1, bidirectional_enc=False):
+    def __init__(self, enc_size, vocab_size, embed_size, hidden_size, rnn_type='GRU',
+                 num_layers=1, bidirectional_enc=False, tgt_vocab=None):
         super(AttnDecoder, self).__init__()
         self.vocab_size = vocab_size  #target vocab size
         self.hidden_size = hidden_size
@@ -167,6 +168,8 @@ class AttnDecoder(nn.Module):
         self.out = nn.Linear(2*hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
         self.hidden = None
+        # TODO: remove saving the tgt vocab in this class
+        self.tgt_vocab = tgt_vocab
 
     # Generates sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt, generate=False):
@@ -187,7 +190,7 @@ class AttnDecoder(nn.Module):
         for i in range(tgt_len):
             decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts,
                                                                                       encoder_outputs, attn_scores)
-            _, top_idx = decoder_outputs.data.topk(1)
+            _, top_idx = decoder_outputs.data.topk(2)
             # todo: potentially make teacher forcing optional/stochastic
             decoder_input = tgt[i]
             outputs.append(decoder_outputs.squeeze(1))
@@ -270,8 +273,8 @@ class EncDec(nn.Module):
     def generate(self, src, max_length):
         self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
-        words = self.decoder.generate(self.encoder.hidden, encoder_outputs, max_gen_length=max_length)
-        return words
+        outputs, words = self.decoder.generate(self.encoder.hidden, encoder_outputs, max_gen_length=max_length)
+        return outputs, words
 
 
     def save(self, fname):

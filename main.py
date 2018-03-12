@@ -74,20 +74,28 @@ def main(args):
         tgt_vocab.save("models/tgt-vocab_" + pair + "_maxnum" + str(max_num_sents) +
                        "_maxlen" + str(max_sent_length) + ".pkl")
 
-        enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size, hidden_size=enc_hidden_size, rnn_type='GRU', num_layers=1, bidirectional=bi_enc)
-        dec = AttnDecoder(enc_size=enc_hidden_size, vocab_size=output_size, embed_size=embed_size, hidden_size=dec_hidden_size, rnn_type='GRU', num_layers=1, bidirectional_enc=bi_enc)
+        enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size,
+                         hidden_size=enc_hidden_size, rnn_type='GRU',
+                         num_layers=1, bidirectional=bi_enc)
+        dec = AttnDecoder(enc_size=enc_hidden_size,vocab_size=output_size,
+                          embed_size=embed_size, hidden_size=dec_hidden_size,
+                          rnn_type='GRU', num_layers=1, bidirectional_enc=bi_enc,
+                          tgt_vocab=tgt_vocab)
         # dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
         model = EncDec(enc, dec)
 
     if use_cuda:
         model = model.cuda()
 
-    monitor = TrainMonitor(model, len(train_sents), print_every=print_every, plot_every=plot_every, save_plot_every=plot_every,
+    monitor = TrainMonitor(model, len(train_sents), print_every=print_every,
+                           plot_every=plot_every, save_plot_every=plot_every,
                            checkpoint_every=model_every)
 
-    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size, learning_rate=0.0001)
+    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size,
+                        learning_rate=0.0001)
 
-    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs, max_gen_length=max_gen_length, debug=debug)
+    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs,
+                  max_gen_length=max_gen_length, debug=debug)
 
 
 if __name__ == "__main__":
