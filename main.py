@@ -23,7 +23,7 @@ def main(args):
     pair = "en-" + tgt_lang
 
     debug=False
-    fixed_seeds=False
+    fixed_seeds=True
     if debug:
         train_prefix = 'data/examples/debug'
         dev_prefix = 'data/examples/debug'
@@ -57,8 +57,8 @@ def main(args):
     embed_size  = 500   #paper: 500
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
-    src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
-    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix)
+    src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
+    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()    
