@@ -37,9 +37,9 @@ class RNNEncoder(nn.Module):
         return output
 
     def save(self, fname):
-        """Save the model to a pickle file."""
-        with open(fname, 'wb') as pickle_file:
-            pickle.dump(self, pickle_file)
+        """Save the model using pytorch's format"""
+        logger.info("Saving at: {}".format(fname))
+        torch.save(self, fname)
 
 
 class RNNDecoder(nn.Module):
@@ -251,9 +251,9 @@ class AttnDecoder(nn.Module):
         return output, context, attn_weights
 
     def save(self, fname):
-        """Save the model to a pickle file."""
-        with open(fname, 'wb') as pickle_file:
-            pickle.dump(self, pickle_file)
+        """Save the model using pytorch's format"""
+        logger.info("Saving at: {}".format(fname))
+        torch.save(self, fname)
 
 
 class EncDec(nn.Module):
@@ -264,7 +264,6 @@ class EncDec(nn.Module):
         self.decoder = decoder
 
     def forward(self, src, tgt):
-        # TODO tgt.shape[0] may be wrong in this call below
         self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
         decoder_outputs = self.decoder(self.encoder.hidden, encoder_outputs, tgt)
@@ -278,7 +277,6 @@ class EncDec(nn.Module):
 
 
     def save(self, fname):
-        """Save the model to a pickle file."""
+        """Save the model using pytorch's format"""
         logger.info("Saving at: {}".format(fname))
-        with open(fname, 'wb') as pickle_file:
-            pickle.dump(self, pickle_file)
+        torch.save(self, fname)

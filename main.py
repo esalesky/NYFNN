@@ -65,7 +65,7 @@ def main(args):
 
     # Initialize our model
     if args.model is not None:
-        model = pickle.load(open(args.model, 'rb'))
+        model = torch.load(args.model)
         src_vocab = pickle.load(open(args.srcvocab, 'rb'))
         tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
     else:
@@ -88,7 +88,7 @@ def main(args):
         model = model.cuda()
 
     monitor = TrainMonitor(model, len(train_sents), print_every=print_every,
-                           plot_every=plot_every, save_plot_every=plot_every,
+                           plot_every=plot_every, save_plot_every=plot_every, model_every=10,
                            checkpoint_every=model_every)
 
     trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size,

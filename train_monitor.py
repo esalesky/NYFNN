@@ -137,8 +137,8 @@ class PlotCallback(TrainCallback):
         pass
 
 
-"""Bootstrap the TrainCallback abstraction to save a model every X iterations and/or every epoch when a particular loss
-   is calculated. Defaults to saving the model every epoch, can also have it save every X iterations with save_every."""
+"""Bootstrap the TrainCallback abstraction to save a model every X epochs when a particular loss
+   is calculated. Defaults to saving the model every epoch, can configure to save less frequently with save_every."""
 
 
 class SaveModelCallback(TrainCallback):
@@ -147,40 +147,33 @@ class SaveModelCallback(TrainCallback):
         super().__init__(iters_per_epoch, loss_type)
         self.model = model
         self.save_every = save_every
-        self.iters = 0
         self.model_path = model_path
         self.total_loss = 0
+        self.epochs = 0
 
     def start_training(self):
         pass
 
     def finish_iter(self, loss_type, loss):
-        if loss_type != loss_type:
-            return
-        if self.save_every > 0:
-            self.iters += 1
-            self.total_loss += loss
-            if self.iters % self.save_every == 0:
-                avg_loss = self.total_loss / self.save_every
-                model_name = "model_iter{0}_loss{1:.3f}".format(self.iters, avg_loss)
-                self.model.save("{}{}.pkl".format(self.model_path, model_name))
-                self.total_loss = 0
+        pass
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         if loss_type != self.loss_type:
             return
-        model_name = "model_e{0}_loss{1:.3f}".format(epoch, avg_loss)
-        self.model.save("{}{}.pkl".format(self.model_path, model_name))
+        self.epochs += 1
+        if self.epochs % self.save_every == 0:
+            model_name = "model_e{0}_loss{1:.3f}".format(epoch, avg_loss)
+            self.model.save("{}{}.model".format(self.model_path, model_name))
 
     def finish_training(self):
         t = time.strftime("%Y-%m-%d-%H%M%S", time.localtime(time.time()))
         model_name = "model_final_{}".format(t)
-        self.model.save("{}{}.pkl".format(self.model_path, model_name))
+        self.model.save("{}{}.model".format(self.model_path, model_name))
 
 
 class TrainMonitor(TrainCallback):
 
-    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, checkpoint_every=20000):
+    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, model_every=10, checkpoint_every=1000):
         self.checkpoint = checkpoint_every
         self.callbacks = []
         self.callbacks.append(PrintCallback(iters_per_epoch, 'train', print_every=print_every))
@@ -200,7 +193,8 @@ class TrainMonitor(TrainCallback):
         # self.callbacks.append(SaveModelCallback(iters_per_epoch, 'train', model, model_path=MODEL_PATH,
         #                                         save_every=checkpoint_every))
         # # Save model
-        self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=MODEL_PATH))
+        self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=MODEL_PATH,
+                                                save_every=model_every))
 
 
     def set_iters(self, iters_per_epoch):
