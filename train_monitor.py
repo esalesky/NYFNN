@@ -43,7 +43,7 @@ class PrintCallback(TrainCallback):
     def __init__(self, iters_per_epoch, loss_type, print_every=0, print_perplexity=True):
         super().__init__(iters_per_epoch, loss_type)
         self.print_every = print_every
-        self.print_loss_total = 0
+        self.interval_loss_total = 0
         self.start = 0
         self.print_perplexity = print_perplexity
 
@@ -54,21 +54,22 @@ class PrintCallback(TrainCallback):
         if self.loss_type != loss_type:
             return
         if self.print_every > 0:
-            self.print_loss_total += loss
+            self.interval_loss_total += loss
             self.iters += 1
             if self.iters % self.print_every == 0:
-                print_loss_avg = self.print_loss_total / self.print_every
+                interval_loss_avg = self.interval_loss_total / self.print_every
                 perc_through_epoch = self.iters / self.iters_per_epoch
                 logger.info('Batch: {} / {}. {}'.format(self.iters, self.iters_per_epoch, time_elapsed(self.start,
                                                                                                    perc_through_epoch)))
-                logger.info('\tLoss: {0:.4f}'.format(print_loss_avg))
+                logger.info('\tLoss: {0:.4f}'.format(interval_loss_avg))
                 if self.print_perplexity:
-                    print_perplexity_avg = perplexity(print_loss_avg)
+                    print_perplexity_avg = perplexity(interval_loss_avg)
                     logger.info('\tPerplexity: {0:.4f}'.format(print_perplexity_avg))
+                self.interval_loss_total = 0
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         self.iters = 0
-        self.print_loss_total = 0
+        self.interval_loss_total = 0
         if loss_type != self.loss_type:
             return
         ppl = perplexity(avg_loss)

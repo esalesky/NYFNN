@@ -37,7 +37,6 @@ class MTTrainer:
     def train_step(self, src, tgt, max_length):
 
         self.optimizer.zero_grad()
-        loss = 0.0
         # Dimensions are (batch_size, sequence_length)
         tgt_length = tgt.shape[1]
         decoder_scores = self.model(src, tgt)
@@ -48,23 +47,25 @@ class MTTrainer:
         if use_cuda:
             masks = masks.cuda()
 
+        loss = 0.0
+        denom = 0
         for gen, ref, mask in zip(decoder_scores, tgt.transpose(0, 1), masks.transpose(0, 1)):
             losses = self.loss_fn(gen, ref)
-            losses = losses * mask
             # Only average over the non-zero losses from the mask
+            losses = losses * mask
             zeros = mask.eq(0).sum()
-            denom = losses.shape[0] - zeros.data[0]
-            avg_loss = losses.sum() / denom
-            loss += avg_loss
+            denom += losses.shape[0] - zeros.data[0] #non-masked length
+            loss  += losses.sum()
 
         # todo: lecture 2/20 re loss fns. pre-train with teacher forcing, finalize using own predictions
 
+        # normalize by tgt length
+        loss = loss / denom
         loss.backward()
         torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0) #gradient clipping
         self.optimizer.step()
 
-        # Normalize loss by target length
-        return loss.data[0] / tgt_length
+        return loss.data[0]
 
     def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
               num_epochs, max_gen_length=100, debug=False):
