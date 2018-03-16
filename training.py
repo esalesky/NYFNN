@@ -103,7 +103,7 @@ class MTTrainer:
                 total_iters += 1
 
                 if total_iters % self.monitor.checkpoint == 0:
-                    logger.info("Calculating dev loss")
+                    logger.info("Calculating dev loss + writing output")
                     ep_fraction = (iteration + 1) / num_batches
                     dev_output_file = "dev_output_e{0}.{1}.txt".format(ep, ep_fraction)
                     avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
@@ -111,7 +111,7 @@ class MTTrainer:
 
             # end of epoch
             # generate output
-            logger.info("Calculating dev loss")
+            logger.info("Calculating dev loss + writing output")
             dev_output_file = "dev_output_e{0}.txt".format(ep)
             avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
             self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
@@ -141,7 +141,7 @@ class MTTrainer:
             scores, predicted = self.model.generate(sent_var[0].view(1, len(src_words)), max_gen_length)
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
             if EOS_TOKEN in predicted_words:
-                eos_index = predicted_words.index(EOS_TOKEN) + 1
+                eos_index = predicted_words.index(EOS_TOKEN)
                 predicted_words = predicted_words[:eos_index]
             output.append(" ".join(predicted_words))
             for gen, ref in zip(scores, sent_var[1]):
