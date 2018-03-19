@@ -25,11 +25,17 @@ class RNNEncoder(nn.Module):
         self.num_layers  = num_layers
 
         # The layers of the NN
-        self.embedding   = nn.Embedding(vocab_size, embed_size)
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, batch_first=True,
-                               num_layers=num_layers, bidirectional=bidirectional)  #input_size will need to change if num_layers>1 !
+        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.embed_linear = nn.Linear(embed_size, hidden_size)
+        self.rnn = rnn_factory(rnn_type, input_size=hidden_size, hidden_size=hidden_size, batch_first=True,
+                               num_layers=num_layers, bidirectional=bidirectional)
         self.hidden = None
 
+    def embedding(self, src):
+        embedded = self.embed(src)
+        output   = self.embed_linear(embedded)
+        return output
+        
    # src is a batch of sentences
     def forward(self, src):
         embedded = self.embedding(src)  # 3D Tensor of size [batch_size x num_hist x emb_size]
@@ -48,14 +54,20 @@ class RNNDecoder(nn.Module):
         super(RNNDecoder, self).__init__()
         self.vocab_size = vocab_size  #target vocab size
         self.hidden_size = hidden_size
-        self.embedding   = nn.Embedding(vocab_size, embed_size)
+        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.embed_linear = nn.Linear(embed_size, hidden_size)
         self.num_layers  = num_layers
         # nn.rnn internally makes input_size = hidden_size for >1 layer
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size, hidden_size=hidden_size, batch_first=True,
+        self.rnn = rnn_factory(rnn_type, input_size=hidden_size, hidden_size=hidden_size, batch_first=True,
                                num_layers=num_layers, bidirectional=bidirectional)
         self.out = nn.Linear(hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
         self.hidden = None
+
+    def embedding(self, src):
+        embedded = self.embed(src)
+        output   = self.embed_linear(embedded)
+        return output
 
     # Performs forward pass for a batch of sentences through the decoder using teacher forcing.
     # Note that this decoder does not use the encoder_outputs at all
@@ -160,16 +172,22 @@ class AttnDecoder(nn.Module):
             self.enc_size = enc_size * 2
         self.attn = Attn(self.enc_size, hidden_size, attn_type="bilinear")
 
-        self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.embed_linear = nn.Linear(embed_size, hidden_size)
         self.linear = nn.Linear(enc_size, hidden_size)
         # nn.rnn internally makes input_size=hidden_size for >1 layer
-        self.rnn = rnn_factory(rnn_type, input_size=embed_size+hidden_size, hidden_size=hidden_size, batch_first=True,
+        self.rnn = rnn_factory(rnn_type, input_size=2*hidden_size, hidden_size=hidden_size, batch_first=True,
                                num_layers=num_layers, bidirectional=False)
         self.out = nn.Linear(2*hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
         self.hidden = None
         # TODO: remove saving the tgt vocab in this class
         self.tgt_vocab = tgt_vocab
+
+    def embedding(self, src):
+        embedded = self.embed(src)
+        output   = self.embed_linear(embedded)
+        return output
 
     # Generates sequence, up to tgt_len, conditioned on the initial hidden state
     def forward(self, init_hidden, encoder_outputs, tgt, generate=False):
