@@ -103,17 +103,19 @@ class MTTrainer:
                 total_iters += 1
 
                 if total_iters % self.monitor.checkpoint == 0:
-                    logger.info("Calculating dev loss + writing output")
+                    logger.info("Calculating dev loss")
                     ep_fraction = (iteration + 1) / num_batches
                     dev_output_file = "dev_output_e{0}.{1}.txt".format(ep, ep_fraction)
-                    avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+                    avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab,
+                                                         max_gen_length, dev_output_file)
                     self.monitor.finish_iter('dev-cp', avg_loss)
 
             # end of epoch
             # generate output
-            logger.info("Calculating dev loss + writing output")
+            logger.info("Calculating dev loss")
             dev_output_file = "dev_output_e{0}.txt".format(ep)
-            avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+            avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab,
+                                                 max_gen_length, dev_output_file)
             self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
             
         # todo: evaluate bleu
@@ -121,36 +123,45 @@ class MTTrainer:
         self.monitor.finish_training()
 
         tst_output_file = "tst_output_e{0}.txt".format(ep)
-        avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file)
+        avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab,
+                                             max_gen_length, tst_output_file)
         self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
 
 
 
-    #todo: generation
     def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt'):
         """Generate sentences, and compute the average loss."""
+
+        beam_size=5
 
         total_loss = 0.0
         output = []
         num_processed = 0
-        for sent in sents:
-            src_ref = sent[0]
-            tgt_ref = sent[1]
-            sent_var = pair2var(sent)
-            src_words = [src_vocab.idx2word[i] for i in src_ref]
-            scores, predicted = self.model.generate(sent_var[0].view(1, len(src_words)), max_gen_length)
+        for sent_pair in sents:
+            # Set up sentences
+            tgt_len = len(sent_pair[1])
+            src_sent, tgt_sent = pair2var(sent_pair)
+            src_sent = src_sent.view(1, -1)  # Reshape src for generation step
+
+            # Generate new sentences
+            scores, predicted = self.model.generate(src_sent, max_gen_length, beam_size)
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
+
+            # Truncate if any EOS was predicted
             if EOS_TOKEN in predicted_words:
-                eos_index = predicted_words.index(EOS_TOKEN)
+                eos_index = predicted_words.index(EOS_TOKEN) + 1
                 predicted_words = predicted_words[:eos_index]
             output.append(" ".join(predicted_words))
-            for gen, ref in zip(scores, sent_var[1]):
+
+            # Score the generated sentence
+            for gen, ref in zip(scores, tgt_sent):
                 loss = self.loss_fn(gen, ref).mean()
-                total_loss += loss.data[0] / len(tgt_ref)
+                total_loss += loss.data[0] / tgt_len
+
+            # Print progress
             num_processed += 1
             if num_processed % 100 == 0:
                 print("Processed {} sentences.".format(num_processed))
-
 
         with open(OUTPUT_PATH + '/' + output_file, 'w', encoding='utf-8') as f:
             f.write("\n".join(output))
