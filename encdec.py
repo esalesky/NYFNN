@@ -78,7 +78,7 @@ class RNNDecoder(nn.Module):
 
     # Generates entire sequence, up to max_gen_length, conditioned on initial hidden state.
     # Note that this decoder does not use the encoder outputs at all
-    def generate(self, init_hidden, encoder_outputs, max_gen_length):
+    def generate(self, init_hidden, encoder_outputs, max_gen_length, beam_size):
         self.hidden = init_hidden # init hidden state with last encoder hidden
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
         # Note that during generation, the batch size should always be 1
@@ -279,10 +279,11 @@ class EncDec(nn.Module):
         decoder_outputs = self.decoder(self.encoder.hidden, encoder_outputs, tgt)
         return decoder_outputs
 
-    def generate(self, src, max_length):
+    def generate(self, src, max_length, beam_size):
         self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
-        outputs, words = self.decoder.generate(self.encoder.hidden, encoder_outputs, max_gen_length=max_length)
+        outputs, words = self.decoder.generate(self.encoder.hidden, encoder_outputs,
+                max_gen_length=max_length, beam_size=beam_size)
         return outputs, words
 
 
