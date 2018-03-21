@@ -1,5 +1,14 @@
 ## project code for 11-747
 
+#### Single step postprocessing
+
+./external_scripts/run-bleu-score.sh 
+Usage: run-bleu-score.sh [-d] [-h] test ref
+Options:
+        -d Detokenize the test file after removing bpe splits
+        -h Display this help
+
+
 #### useful preprocessing/postprocessing commands
 
 to de-xml data directory (runs on all files in a dir, currently):
