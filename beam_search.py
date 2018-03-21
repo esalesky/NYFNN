@@ -62,7 +62,7 @@ class Beam():
         Adds the top self.size paths to the list of possible paths.
         Deletes the original path passed in, as now we have the longer versions of it.
         """
-        top_nll, top_idx = decoder_outputs.data.topk(self.size)
+        top_nll, top_idx = outputs.data.topk(self.size)
         top_idx = self.__to_array(top_idx)
         top_nll = self.__to_array(top_nll)
         # Get the historic score and outputs

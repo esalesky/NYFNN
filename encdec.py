@@ -221,15 +221,15 @@ class AttnDecoder(nn.Module):
         beam.add_initial_path(decoder_contexts)
         pdb.set_trace()
         for _ in range(max_gen_length):
-            for path in beam:
+            all_paths = beam.paths.keys()
+            for path in all_paths:
                 if path[-1] == EOS:
                     pass  # Keep the current path as a candidate beam path
                 else:
                     # Is this a bug? Should attn_weights be attn_scores?
                     decoder_input, decoder_contexts = beam.get_decoder_params(path)
-                    decoder_outputs, decoder_contexts, attn_weights = \
-                        self.__forward_one_word(decoder_input, decoder_contexts,
-                                                encoder_outputs, attn_scores)
+                    decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(
+                        decoder_input, decoder_contexts, encoder_outputs, attn_scores)
                     # Add the potential next steps for the current beam path
                     beam.add_paths(path, decoder_outputs, decoder_contexts)
             beam.select_best_paths()
