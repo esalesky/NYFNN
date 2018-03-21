@@ -9,10 +9,12 @@ def main(args):
     prefix = args.dirname  #path to dir to convert, ie data/en-{cs,de}
     files = [f for f in listdir(prefix)]
     files.remove("README")
-    transformer = CzechMorphologyTransformer(args.dictionary, args.tagger, mode='tokenize')
+    transformer = CzechMorphologyTransformer(args.dictionary, args.tagger, mode=args.mode)
+    file_suffix = '-tokenized.txt' if args.mode == 'tokenize' else '-morph.txt'
     for f in files:
         if f.endswith(".cs.txt"):
-            outfile = open(prefix + f.replace(".txt", "") + "-tokenized.txt", "w+", encoding='utf-8')
+
+            outfile = open(prefix + f.replace(".txt", "") + file_suffix, "w+", encoding='utf-8')
             convert(prefix + f, outfile, transformer)
             outfile.close()
 
@@ -32,5 +34,7 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--dirname", required=True, help='data dir (eg data/en-cs)')
     parser.add_argument("-y", "--dictionary", required=True, help='path to czech morphodita dict file')
     parser.add_argument("-t", "--tagger", required=True, help='path to czech morphodita parser file')
+    parser.add_argument("-m", "--mode", required=True, help='Mode (tokenize or morph)')
+
     args = parser.parse_args()
     main(args)
