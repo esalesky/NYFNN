@@ -7,9 +7,7 @@ import torch
 
 # local imports
 from preprocessing import input_reader
-from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder
 from utils import use_cuda, MODEL_PATH
-from train_monitor import TrainMonitor
 from training import MTTrainer
 
 def main(args):
@@ -43,7 +41,7 @@ def main(args):
 
     trainer = MTTrainer(model, None, optim_type='Adam', batch_size=1,
                         learning_rate=0.0001)
-    trainer.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, args.output)
+    trainer.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, args.output, plot_attn=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -13,6 +13,7 @@ from preprocessing import SOS, EOS, EOS_TOKEN
 from batching import make_batches
 
 import logging
+from plot_attention import plot_attention
 
 logger = logging.getLogger(__name__)
 
@@ -127,19 +128,26 @@ class MTTrainer:
 
 
     #todo: generation
-    def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt'):
+    def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt', plot_attn=False):
         """Generate sentences, and compute the average loss."""
 
         total_loss = 0.0
         output = []
         num_processed = 0
+        sent_id = 0
         for sent in sents:
+            sent_id += 1
             src_ref = sent[0]
             tgt_ref = sent[1]
             sent_var = pair2var(sent)
             src_words = [src_vocab.idx2word[i] for i in src_ref]
-            scores, predicted = self.model.generate(sent_var[0].view(1, len(src_words)), max_gen_length)
+            scores, predicted, attention = self.model.generate(sent_var[0].view(1, len(src_words)),
+                                                                   max_gen_length)
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
+            src_words = [src_vocab.idx2word[i] for i in src_ref]
+            if plot_attn:
+                plot_attention(src_words, predicted_words, attention.data.cpu().numpy(), 'output/' + str(sent_id) + '.png')
+
             if EOS_TOKEN in predicted_words:
                 eos_index = predicted_words.index(EOS_TOKEN)
                 predicted_words = predicted_words[:eos_index]

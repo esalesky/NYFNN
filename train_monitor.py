@@ -70,6 +70,7 @@ class PrintCallback(TrainCallback):
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         self.iters = 0
         self.interval_loss_total = 0
+        self.start = time.time()
         if loss_type != self.loss_type:
             return
         ppl = perplexity(avg_loss)
@@ -77,6 +78,7 @@ class PrintCallback(TrainCallback):
         logger.info("Epoch {}: {} ppl, {:.4f}. avg loss, {:.4f}. total loss, {:.4f}".format(epoch, self.loss_type, ppl,
                                                                                             avg_loss, total_loss))
         logger.info("-" * 65)
+
 
     def finish_training(self):
         pass

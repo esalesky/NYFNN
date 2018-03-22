@@ -212,10 +212,12 @@ class AttnDecoder(nn.Module):
         decoder_contexts = decoder_contexts.cuda() if use_cuda else decoder_contexts
         outputs = []
         words = []
+        attn_weights_matrix = []
         attn_scores = self.attn.calc_attn_scores(encoder_outputs)
         for _ in range(max_gen_length):
             decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts,
                                                                                       encoder_outputs, attn_scores)
+            attn_weights_matrix.append(attn_weights.squeeze(1).transpose(0, 1))
             _, top_idx = decoder_outputs.data.topk(1)
             # Recover the value of the top index and wrap in a new variable to break backprop chain
             word_idx = top_idx.cpu().numpy()
@@ -226,8 +228,7 @@ class AttnDecoder(nn.Module):
             words.append(word_idx[0][0][0])
             if word_idx == EOS:
                 break
-
-        return outputs, words
+        return outputs, words, torch.cat(attn_weights_matrix, dim=1)
 
     # Passes a single word through the decoder network
     def __forward_one_word(self, tgt_word, prev_context, encoder_outputs, attn_scores):
@@ -272,8 +273,8 @@ class EncDec(nn.Module):
     def generate(self, src, max_length):
         self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
-        outputs, words = self.decoder.generate(self.encoder.hidden, encoder_outputs, max_gen_length=max_length)
-        return outputs, words
+        outputs, words, attn = self.decoder.generate(self.encoder.hidden, encoder_outputs, max_gen_length=max_length)
+        return outputs, words, attn
 
 
     def save(self, fname):
