@@ -38,8 +38,7 @@ class Beam():
         Returns: (decoder_inputs, decoder_context)
         """
         # Wrap the last word in the history in a Variable for the input
-        # TODO: Would need to change the size of this input for mini-batching
-        decoder_input = Variable(torch.LongTensor([[path[-1]]]))
+        decoder_input = Variable(torch.LongTensor([[int(path[-1])]]))
         decoder_input = decoder_input.cuda() if use_cuda else decoder_input
         return decoder_input, self[path]['context']
 
@@ -82,19 +81,18 @@ class Beam():
 
     def select_best_paths(self):
         """Select the best beam paths to continue the beam search."""
+        all_paths = [p for p in self]
         top_paths = self._get_topn_paths(self.size)
         
         # Go through and delete all other paths
-        for path in self:
+        for path in all_paths:
             if path not in top_paths:
                 self.delete_path(path)
-
-        assert len(self) <= self.size, 'More than {} beams accumulated'.format(self.size)
 
     def get_best_path_results(self):
         """Return the decoder outputs and word idxs from the best path."""
         best_path = self._get_topn_paths(1)[0]
-        outputs = self[path]['outputs']
+        outputs = self[best_path]['outputs']
         # Not sure why we do this, tbd...
         outputs = [*map(lambda o: o.squeeze(1), outputs)]
         return outputs, list(best_path)
