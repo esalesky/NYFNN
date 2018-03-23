@@ -21,10 +21,17 @@ def main(args):
     max_gen_length = 100
     max_num_sents = 100000
 
-    train_prefix = 'data/examples/debug'
-    dev_prefix = 'data/examples/debug'
-    tst_prefix = 'data/examples/debug'
-    file_suffix = ''
+    debug = True
+    if debug:
+        train_prefix = 'data/examples/debug'
+        dev_prefix = 'data/examples/debug'
+        tst_prefix = 'data/examples/debug'
+        file_suffix = ''
+    else:
+        train_prefix = 'data/{}/bped/train.tags.{}'.format(pair, pair)
+        dev_prefix   = 'data/{}/bped/IWSLT16.TED.tst2012.{}'.format(pair, pair)
+        tst_prefix   = 'data/{}/bped/IWSLT16.TED.tst2013.{}'.format(pair, pair)
+        file_suffix  = ".bpe"
 
     # Load the model
     model = torch.load(args.model)
@@ -41,7 +48,9 @@ def main(args):
 
     trainer = MTTrainer(model, None, optim_type='Adam', batch_size=1,
                         learning_rate=0.0001)
-    trainer.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, args.output, plot_attn=True)
+    avg_loss, total_loss = trainer.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, args.output, plot_attn=True)
+    print("Total dev loss: {}, Average dev loss: {}".format(total_loss, avg_loss))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
