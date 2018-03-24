@@ -22,9 +22,8 @@ def main(args):
     tgt_lang = 'cs'  #cs or de
     pair = "en-" + tgt_lang
 
-    debug=False
     fixed_seeds=True
-    if debug:
+    if args.debug:
         train_prefix = 'data/examples/debug'
         dev_prefix = 'data/examples/debug'
         tst_prefix = 'data/examples/debug'
@@ -54,7 +53,8 @@ def main(args):
     if bi_enc:
         enc_hidden_size = int(enc_hidden_size / 2)
     dec_hidden_size = 1024  #paper: 1024
-    embed_size  = 500   #paper: 500
+    embed_size = 500   #paper: 500
+    beam_size  = 5
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
     src_vocab, tgt_vocab, dev_sents_unsorted   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
@@ -93,15 +93,16 @@ def main(args):
                            plot_every=plot_every, save_plot_every=plot_every, model_every=10,
                            checkpoint_every=model_every)
 
-    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size,
+    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size, beam_size=beam_size,
                         learning_rate=0.0001)
 
     trainer.train(train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab, num_epochs,
-                  max_gen_length=max_gen_length, debug=debug)
+                  max_gen_length=max_gen_length, debug=args.debug)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--debug", action='store_true')
     parser.add_argument("-m", "--model", default=None)
     parser.add_argument("-s", "--srcvocab", default=None)
     parser.add_argument("-t", "--tgtvocab", default=None)
@@ -109,3 +110,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': 'training.log'})
     main(args)
+

@@ -24,19 +24,22 @@ def optimizer_factory(optim_type, model, **kwargs):
 
 class MTTrainer:
 
-    def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, learning_rate=0.01):
+    def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, beam_size=5, learning_rate=0.01):
         self.model = model
         self.optimizer = optimizer_factory(optim_type, model, lr=learning_rate)
         # Decay learning rate by a factor of 0.5 (gamma) every 10 epochs (step_size)
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
         # Reduce flag makes this return a loss per patch, necessary for masking
         self.loss_fn = nn.NLLLoss(reduce=False)
+        self.dev_loss_fn = nn.NLLLoss(reduce=False)
+        self.dev_loss_fn.require_grad=False
         self.use_nllloss = True
         self.monitor = train_monitor
         self.batch_size = batch_size
+        self.beam_size = beam_size
 
     # Computes loss for a single batch of source and target sentences
-    def calc_batch_loss(self, src, tgt):
+    def calc_batch_loss(self, src, tgt, loss_fn):
         tgt_length = tgt.shape[1]
         decoder_scores = self.model(src, tgt)
 
@@ -51,7 +54,7 @@ class MTTrainer:
         if len(masks) != len(tgt) != len(decoder_scores):
             raise Exception
         for gen, ref, mask in zip(decoder_scores, tgt.transpose(0, 1), masks.transpose(0, 1)):
-            losses = self.loss_fn(gen, ref)
+            losses = loss_fn(gen, ref)
             # Only average over the non-zero losses from the mask
             losses = losses * mask
             zeros = mask.eq(0).sum()
@@ -67,7 +70,7 @@ class MTTrainer:
     def train_step(self, src, tgt):
 
         self.optimizer.zero_grad()
-        loss = self.calc_batch_loss(src, tgt)
+        loss = self.calc_batch_loss(src, tgt, self.loss_fn)
         loss.backward()
         torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0) #gradient clipping
         self.optimizer.step()
@@ -141,7 +144,7 @@ class MTTrainer:
         sent_id = 0
         for iteration in range(len(dev_batches)):
             src, tgt = pair2var(dev_batches[iteration])
-            loss = self.calc_batch_loss(src, tgt)
+            loss = self.calc_batch_loss(src, tgt, self.dev_loss_fn)
             total_loss += loss
             sent_id += 1
         avg_loss = total_loss / len(dev_batches)
@@ -151,7 +154,6 @@ class MTTrainer:
     def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt', plot_attn=False):
         """Generate sentences, and compute the average loss."""
 
-        beam_size = 5
         total_loss = 0.0
         output = []
         num_processed = 0
@@ -163,7 +165,7 @@ class MTTrainer:
             sent_var = pair2var(sent)
             src_words = [src_vocab.idx2word[i] for i in src_ref]
             scores, predicted, attention = self.model.generate(sent_var[0].view(1, len(src_words)),
-                                                                   max_gen_length, beam_size)
+                                                                   max_gen_length, self.beam_size)
             # print(attention)
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
             src_words = [src_vocab.idx2word[i] for i in src_ref]
