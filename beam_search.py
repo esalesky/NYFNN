@@ -49,13 +49,13 @@ class Beam():
         """
         assert len(self) == 0, 'Tried to add a new beam path when already at max.'
         path = (SOS, )
-        self[path] = {'outputs': [], 'context': context, 'score': 0}
+        self[path] = {'outputs': [], 'attn_weights': [], 'context': context, 'score': 0}
 
     def delete_path(self, path):
         """Delete a path from the dict of possible paths."""
         return self.paths.pop(path)
 
-    def add_paths(self, path, outputs, context):
+    def add_paths(self, path, outputs, attn_weights, context):
         """Add potential branching paths to be checked/pruned later.
 
         Adds the top self.size paths to the list of possible paths.
@@ -66,14 +66,17 @@ class Beam():
         top_nll = self.__to_array(top_nll)
         # Get the historic score and outputs
         hist_outputs = self[path]['outputs']
-        hist_score = self[path]['score']
         new_outputs = hist_outputs
         new_outputs.append(outputs)
+        hist_attn = self[path]['attn_weights']
+        new_attn = hist_attn
+        new_attn.append(attn.squeeze(1).transpose(0, 1))
+        hist_score = self[path]['score']
 
         for idx, nll in zip(top_idx, top_nll):
             new_path = path + (idx,)
             new_score = hist_score + nll
-            self[new_path] = {'outputs': new_outputs, 'context': context,
+            self[new_path] = {'outputs': new_outputs, 'attn_weights':, new_attn, 'context': context,
                 'score': new_score}
 
         # Finally we delete the historic path from the list of candidates
@@ -93,9 +96,10 @@ class Beam():
         """Return the decoder outputs and word idxs from the best path."""
         best_path = self._get_topn_paths(1)[0]
         outputs = self[best_path]['outputs']
+        attn_weights = self[best_path]['attn_weights']
         # Not sure why we do this, tbd...
         outputs = [*map(lambda o: o.squeeze(1), outputs)]
-        return outputs, list(best_path)
+        return outputs, list(best_path), torch.cat(attn_weights, dim=1)
 
     def _get_topn_paths(self, n):
         """Return a list of the top n paths."""

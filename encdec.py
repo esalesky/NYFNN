@@ -225,7 +225,6 @@ class AttnDecoder(nn.Module):
                 if path[-1] == EOS:
                     pass  # Keep the current path as a candidate beam path
                 else:
-                    # Is this a bug? Should attn_weights be attn_scores?
                     decoder_input, decoder_contexts = beam.get_decoder_params(path)
                     decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(
                         decoder_input, decoder_contexts, encoder_outputs, attn_scores)
@@ -237,8 +236,8 @@ class AttnDecoder(nn.Module):
             if beam.is_ended():
                 break
 
-        outputs, words = beam.get_best_path_results()
-        return outputs, words
+        outputs, words, attn_weights_matrix = beam.get_best_path_results()
+        return outputs, words, attn_weights_matrix
 
     # Passes a single word through the decoder network
     def __forward_one_word(self, tgt_word, prev_context, encoder_outputs, attn_scores):
@@ -283,9 +282,9 @@ class EncDec(nn.Module):
     def generate(self, src, max_length, beam_size):
         self.encoder.hidden = None  # self.encoder.init_hidden(batch_size)
         encoder_outputs = self.encoder(src)
-        outputs, words = self.decoder.generate(self.encoder.hidden, encoder_outputs,
-                max_gen_length=max_length, beam_size=beam_size)
-        return outputs, words
+        outputs, words, attn_weights = self.decoder.generate(self.encoder.hidden,
+            encoder_outputs, max_gen_length=max_length, beam_size=beam_size)
+        return outputs, words, attn_weights
 
 
     def save(self, fname):
