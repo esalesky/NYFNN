@@ -142,7 +142,10 @@ class MTTrainer:
         total_loss = 0.0
         num_processed = 0
         sent_id = 0
-        for iteration in range(len(dev_batches)):
+        num_batches = len(dev_batches)
+        for iteration in range(num_batches):
+            if iteration % 50 == 0:
+                logger.info("{}/{} dev batches complete".format(iteration, num_batches))
             src, tgt = pair2var(dev_batches[iteration])
             loss = self.calc_batch_loss(src, tgt)
             total_loss += loss
@@ -186,7 +189,7 @@ class MTTrainer:
                 total_loss += loss.data[0] / len(gen_ref_pairs)
             num_processed += 1
             if num_processed % 100 == 0:
-                print("Processed {} sentences.".format(num_processed))
+                logger.info("Processed {} sentences.".format(num_processed))
 
 
         with open(OUTPUT_PATH + '/' + output_file, 'w', encoding='utf-8') as f:
