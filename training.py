@@ -31,12 +31,14 @@ class MTTrainer:
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
         # Reduce flag makes this return a loss per patch, necessary for masking
         self.loss_fn = nn.NLLLoss(reduce=False)
+        self.dev_loss_fn = nn.NLLLoss(reduce=False)
+        self.dev_loss_fn.require_grad=False
         self.use_nllloss = True
         self.monitor = train_monitor
         self.batch_size = batch_size
 
     # Computes loss for a single batch of source and target sentences
-    def calc_batch_loss(self, src, tgt):
+    def calc_batch_loss(self, src, tgt, loss_fn):
         tgt_length = tgt.shape[1]
         decoder_scores = self.model(src, tgt)
 
@@ -51,7 +53,7 @@ class MTTrainer:
         if len(masks) != len(tgt) != len(decoder_scores):
             raise Exception
         for gen, ref, mask in zip(decoder_scores, tgt.transpose(0, 1), masks.transpose(0, 1)):
-            losses = self.loss_fn(gen, ref)
+            losses = loss_fn(gen, ref)
             # Only average over the non-zero losses from the mask
             losses = losses * mask
             zeros = mask.eq(0).sum()
@@ -67,7 +69,7 @@ class MTTrainer:
     def train_step(self, src, tgt):
 
         self.optimizer.zero_grad()
-        loss = self.calc_batch_loss(src, tgt)
+        loss = self.calc_batch_loss(src, tgt, self.loss_fn)
         loss.backward()
         torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0) #gradient clipping
         self.optimizer.step()
@@ -141,7 +143,7 @@ class MTTrainer:
         sent_id = 0
         for iteration in range(len(dev_batches)):
             src, tgt = pair2var(dev_batches[iteration])
-            loss = self.calc_batch_loss(src, tgt)
+            loss = self.calc_batch_loss(src, tgt, self.dev_loss_fn)
             total_loss += loss
             sent_id += 1
         avg_loss = total_loss / len(dev_batches)
