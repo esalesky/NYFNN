@@ -76,8 +76,8 @@ class Beam():
         for idx, nll in zip(top_idx, top_nll):
             new_path = path + (idx,)
             new_score = hist_score + nll
-            self[new_path] = {'outputs': new_outputs, 'attn_weights':, new_attn, 'context': context,
-                'score': new_score}
+            self[new_path] = {'outputs': new_outputs, 'attn_weights': new_attn,
+            		'context': context, 'score': new_score}
 
         # Finally we delete the historic path from the list of candidates
         self.delete_path(path)
