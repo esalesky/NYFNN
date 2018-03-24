@@ -47,7 +47,7 @@ def main(args):
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 500
+    model_every = 500000
     bi_enc = True
     # Encoder and decoder hidden size must change together
     enc_hidden_size = 1024

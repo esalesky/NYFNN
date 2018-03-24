@@ -33,8 +33,9 @@ def plot_attention(src_words, trg_words, attention_matrix, file_name=None):
     """
     fig, ax = plt.subplots()
     #a lazy, rough, approximate way of making the image large enough
-    fig.set_figwidth(int(len(trg_words)*.6))
+    fig.set_figwidth(min(int(len(trg_words)*1.0), 6))
 
+    ax.grid(True, which='minor', axis='both', linestyle='-', color='k')
     # put the major ticks at the middle of each cell
     ax.set_xticks(np.arange(attention_matrix.shape[1]) + 0.5, minor=False)
     ax.set_yticks(np.arange(attention_matrix.shape[0]) + 0.5, minor=False)
@@ -42,11 +43,13 @@ def plot_attention(src_words, trg_words, attention_matrix, file_name=None):
 
     # label axes by words
     ax.set_xticklabels(trg_words, minor=False)
+    ax.set_xlabel('gen words')
     ax.set_yticklabels(src_words, minor=False)
+    ax.set_ylabel('src_words')
     ax.xaxis.tick_top()
     plt.setp(ax.get_xticklabels(), rotation=50, horizontalalignment='right')
     # draw the heatmap
-    plt.pcolor(attention_matrix, cmap=plt.cm.Blues, vmin=0, vmax=1)
+    plt.pcolor(attention_matrix, cmap=plt.cm.Blues, vmin=0, vmax=1, edgecolor='k')
     plt.colorbar()
 
     if file_name != None:

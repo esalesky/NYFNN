@@ -9,7 +9,7 @@ from torch.optim import lr_scheduler
 
 #local imports
 from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH, OUTPUT_PATH
-from preprocessing import SOS, EOS, EOS_TOKEN
+from preprocessing import SOS, SOS_TOKEN, EOS, EOS_TOKEN
 from batching import make_batches
 
 import logging
@@ -115,7 +115,8 @@ class MTTrainer:
                     logger.info("Calculating dev loss + writing output")
                     ep_fraction = (iteration + 1) / num_batches
                     dev_output_file = "dev_output_e{0}.{1}.txt".format(ep, ep_fraction)
-                    avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+                    avg_loss, total_loss = self.generate(dev_sents, src_vocab,
+                                                         tgt_vocab, max_gen_length, dev_output_file)
                     self.monitor.finish_iter('dev-cp', avg_loss)
 
             # end of epoch
@@ -150,6 +151,7 @@ class MTTrainer:
     def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt', plot_attn=False):
         """Generate sentences, and compute the average loss."""
 
+        beam_size = 5
         total_loss = 0.0
         output = []
         num_processed = 0
@@ -161,11 +163,15 @@ class MTTrainer:
             sent_var = pair2var(sent)
             src_words = [src_vocab.idx2word[i] for i in src_ref]
             scores, predicted, attention = self.model.generate(sent_var[0].view(1, len(src_words)),
-                                                                   max_gen_length)
+                                                                   max_gen_length, beam_size)
+            # print(attention)
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
             src_words = [src_vocab.idx2word[i] for i in src_ref]
             if plot_attn:
                 plot_attention(src_words, predicted_words, attention.data.cpu().numpy(), 'output/' + str(sent_id) + '.png')
+
+            if predicted_words[0] == SOS_TOKEN:
+                predicted_words = predicted_words[1:]
 
             if EOS_TOKEN in predicted_words:
                 eos_index = predicted_words.index(EOS_TOKEN)
