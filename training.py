@@ -35,10 +35,8 @@ class MTTrainer:
         self.monitor = train_monitor
         self.batch_size = batch_size
 
-    def train_step(self, src, tgt, max_length):
-
-        self.optimizer.zero_grad()
-        # Dimensions are (batch_size, sequence_length)
+    # Computes loss for a single batch of source and target sentences
+    def calc_batch_loss(self, src, tgt):
         tgt_length = tgt.shape[1]
         decoder_scores = self.model(src, tgt)
 
@@ -50,18 +48,26 @@ class MTTrainer:
 
         loss = 0.0
         denom = 0
+        if len(masks) != len(tgt) != len(decoder_scores):
+            raise Exception
         for gen, ref, mask in zip(decoder_scores, tgt.transpose(0, 1), masks.transpose(0, 1)):
             losses = self.loss_fn(gen, ref)
             # Only average over the non-zero losses from the mask
             losses = losses * mask
             zeros = mask.eq(0).sum()
-            denom += losses.shape[0] - zeros.data[0] #non-masked length
-            loss  += losses.sum()
+            denom += losses.shape[0] - zeros.data[0]  # non-masked length
+            loss += losses.sum()
 
         # todo: lecture 2/20 re loss fns. pre-train with teacher forcing, finalize using own predictions
 
         # normalize by tgt length
         loss = loss / denom
+        return loss
+
+    def train_step(self, src, tgt):
+
+        self.optimizer.zero_grad()
+        loss = self.calc_batch_loss(src, tgt)
         loss.backward()
         torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0) #gradient clipping
         self.optimizer.step()
@@ -72,6 +78,7 @@ class MTTrainer:
               num_epochs, max_gen_length=100, debug=False):
 
         batches = make_batches(train_sents, self.batch_size)
+        dev_batches = make_batches(dev_sents, self.batch_size)
         num_batches = len(batches)
 
         self.monitor.set_iters(num_batches)
@@ -91,11 +98,12 @@ class MTTrainer:
                 random.shuffle(batches)
 
             for iteration in range(num_batches):
-                torch.cuda.empty_cache()
+                if use_cuda:
+                    torch.cuda.empty_cache()
                 src_sent, tgt_sent = pair2var(batches[iteration])
 
                 max_batch_length = src_sent.size()[1]  # size of longest src sent in batch
-                loss = self.train_step(src_sent, tgt_sent, max_length=max_batch_length)
+                loss = self.train_step(src_sent, tgt_sent)
 
                 self.monitor.finish_iter('train', loss)
 
@@ -114,7 +122,8 @@ class MTTrainer:
             # generate output
             logger.info("Calculating dev loss + writing output")
             dev_output_file = "dev_output_e{0}.txt".format(ep)
-            avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+            avg_loss, total_loss = self.calc_dev_loss(dev_batches)
+            self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
             self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
             
         # todo: evaluate bleu
@@ -125,7 +134,17 @@ class MTTrainer:
         avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file)
         self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
 
-
+    def calc_dev_loss(self, dev_batches):
+        total_loss = 0.0
+        num_processed = 0
+        sent_id = 0
+        for iteration in range(len(dev_batches)):
+            src, tgt = pair2var(dev_batches[iteration])
+            loss = self.calc_batch_loss(src, tgt)
+            total_loss += loss
+            sent_id += 1
+        avg_loss = total_loss / len(dev_batches)
+        return avg_loss.data[0], total_loss.data[0]
 
     #todo: generation
     def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt', plot_attn=False):
@@ -152,9 +171,10 @@ class MTTrainer:
                 eos_index = predicted_words.index(EOS_TOKEN)
                 predicted_words = predicted_words[:eos_index]
             output.append(" ".join(predicted_words))
-            for gen, ref in zip(scores, sent_var[1]):
+            gen_ref_pairs = list(zip(scores, sent_var[1]))
+            for gen, ref in gen_ref_pairs:
                 loss = self.loss_fn(gen, ref).mean()
-                total_loss += loss.data[0] / len(tgt_ref)
+                total_loss += loss.data[0] / len(gen_ref_pairs)
             num_processed += 1
             if num_processed % 100 == 0:
                 print("Processed {} sentences.".format(num_processed))

@@ -190,7 +190,6 @@ class AttnDecoder(nn.Module):
         for i in range(tgt_len):
             decoder_outputs, decoder_contexts, attn_weights = self.__forward_one_word(decoder_input, decoder_contexts,
                                                                                       encoder_outputs, attn_scores)
-            _, top_idx = decoder_outputs.data.topk(2)
             # todo: potentially make teacher forcing optional/stochastic
             decoder_input = tgt[i]
             outputs.append(decoder_outputs.squeeze(1))
