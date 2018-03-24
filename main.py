@@ -57,11 +57,13 @@ def main(args):
     embed_size  = 500   #paper: 500
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
-    src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
+    src_vocab, tgt_vocab, dev_sents_unsorted   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
+    src_vocab, tgt_vocab, dev_sents_sorted = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length,
+                                                   src_vocab, tgt_vocab, file_suffix=file_suffix, sort=True, filt=False)
     src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
 
     input_size  = src_vocab.vocab_size()
-    output_size = tgt_vocab.vocab_size()    
+    output_size = tgt_vocab.vocab_size()
 
     # Initialize our model
     if args.model is not None:
@@ -94,7 +96,7 @@ def main(args):
     trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size,
                         learning_rate=0.0001)
 
-    trainer.train(train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab, num_epochs,
+    trainer.train(train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab, num_epochs,
                   max_gen_length=max_gen_length, debug=debug)
 
 

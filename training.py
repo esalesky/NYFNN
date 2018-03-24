@@ -74,11 +74,11 @@ class MTTrainer:
 
         return loss.data[0]
 
-    def train(self, train_sents, dev_sents, tst_sents, src_vocab, tgt_vocab,
+    def train(self, train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab,
               num_epochs, max_gen_length=100, debug=False):
 
         batches = make_batches(train_sents, self.batch_size)
-        dev_batches = make_batches(dev_sents, self.batch_size)
+        dev_batches = make_batches(dev_sents_sorted, self.batch_size)
         num_batches = len(batches)
 
         self.monitor.set_iters(num_batches)
@@ -115,7 +115,8 @@ class MTTrainer:
                     logger.info("Calculating dev loss + writing output")
                     ep_fraction = (iteration + 1) / num_batches
                     dev_output_file = "dev_output_e{0}.{1}.txt".format(ep, ep_fraction)
-                    avg_loss, total_loss = self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+                    avg_loss, total_loss = self.generate(dev_sents_unsorted, src_vocab,
+                                                         tgt_vocab, max_gen_length, dev_output_file)
                     self.monitor.finish_iter('dev-cp', avg_loss)
 
             # end of epoch
@@ -123,7 +124,7 @@ class MTTrainer:
             logger.info("Calculating dev loss + writing output")
             dev_output_file = "dev_output_e{0}.txt".format(ep)
             avg_loss, total_loss = self.calc_dev_loss(dev_batches)
-            self.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+            self.generate(dev_sents_unsorted, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
             self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
             
         # todo: evaluate bleu
