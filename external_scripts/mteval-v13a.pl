@@ -1,4 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
+#
+# This file is part of moses.  Its use is licensed under the GNU Lesser General
+# Public License version 2.1 or, at your option, any later version.
 
 use warnings;
 use strict;
@@ -12,6 +15,10 @@ binmode STDERR, ":utf8";
 
 #################################
 # History:
+#
+# version 13a
+#    * modified the scoring functions to prevent division-by-zero errors when a system segment is empty
+#        * affected methods: 'bleu_score' and 'bleu_score_smoothing'
 #
 # version 13
 #    * Uses a XML parser to read data (only when extension is .xml)
@@ -153,7 +160,7 @@ my $usage = "\n\nUsage: $0 -r <ref_file> -s <src_file> -t <tst_file>\n\n".
     "         BLEU-sys.scr and NIST-sys.scr : system-level scores\n" .
     "  --no-smoothing : disable smoothing on BLEU scores\n" .
     "\n";
- 
+
 use vars qw ($opt_r $opt_s $opt_t $opt_d $opt_h $opt_b $opt_n $opt_c $opt_x $opt_e);
 use Getopt::Long;
 my $ref_file = '';
@@ -216,7 +223,7 @@ my $METHOD = "BOTH";
 if ( $opt_b ) { $METHOD = "BLEU"; }
 if ( $opt_n ) { $METHOD = "NIST"; }
 my $method;
- 
+
 ######
 # Global variables
 my ($src_lang, $tgt_lang, @tst_sys, @ref_sys); # evaluation parameters
@@ -261,7 +268,7 @@ foreach my $doc (sort keys %eval_docs)
 print "    src set \"$src_id\" (", scalar keys %eval_docs, " docs, $cum_seg segs)\n";
 print "    ref set \"$ref_id\" (", scalar keys %ref_data, " refs)\n";
 print "    tst set \"$tst_id\" (", scalar keys %tst_data, " systems)\n\n";
- 
+
 foreach my $sys (sort @tst_sys)
 {
 	for (my $n=1; $n<=$max_Ngram; $n++)
@@ -604,7 +611,7 @@ sub score_system
 
 	if ($method eq "BLEU")
 	{
-		$overallScore->{ $sys }{ 'score' } = &{$BLEU_SCORE}($cum_ref_length, \@cum_match, \@cum_tst_cnt, $sys, $SCOREmt);
+		$overallScore->{ $sys }{ 'score' } = &{$BLEU_SCORE}($cum_ref_length, \@cum_match, \@cum_tst_cnt, $sys, $SCOREmt, 1);
 	}
 	if ($method eq "NIST")
 	{
@@ -638,9 +645,9 @@ sub score_document
 			{
 				printf "ref '$ref', seg $seg: %s\n", $ref_data{$ref}{$doc}{SEGS}{$seg}
 			}
-			
+
 		}
-		
+
 		printf "sys '$sys', seg $seg: %s\n", $tst_data{$sys}{$doc}{SEGS}{$seg} if ( $detail >= 3 );
 		($ref_length, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info) = score_segment ($tst_data{$sys}{$doc}{SEGS}{$seg}, @ref_segments);
 
@@ -650,7 +657,7 @@ sub score_document
 			my $segScore = &{$BLEU_SCORE}($ref_length, $match_cnt, $tst_cnt, $sys, %DOCmt);
 			$overallScore->{ $sys }{ 'documents' }{ $doc }{ 'segments' }{ $seg }{ 'score' } = $segScore;
 			if ( $detail >= 2 )
-			{ 
+			{
 				printf "  $method score using 4-grams = %.4f for system \"$sys\" on segment $seg of document \"$doc\" (%d words)\n", $segScore, $tst_cnt->[1]
 			}
 		}
@@ -660,7 +667,7 @@ sub score_document
 			my $segScore = nist_score (scalar @ref_sys, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info, $sys, %DOCmt);
 			$overallScore->{ $sys }{ 'documents' }{ $doc }{ 'segments' }{ $seg }{ 'score' } = $segScore;
 			if ( $detail >= 2 )
-			{ 
+			{
 				printf "  $method score using 5-grams = %.4f for system \"$sys\" on segment $seg of document \"$doc\" (%d words)\n", $segScore, $tst_cnt->[1];
 			}
 		}
@@ -803,7 +810,6 @@ sub bleu_score_nosmoothing
 	my ($ref_length, $matching_ngrams, $tst_ngrams, $sys, $SCOREmt) = @_;
 	my $score = 0;
 	my $iscore = 0;
-	my $len_score = min (0, 1-$ref_length/$tst_ngrams->[1]);
 
 	for ( my $j = 1; $j <= $max_Ngram; ++$j )
 	{
@@ -813,6 +819,7 @@ sub bleu_score_nosmoothing
 		}
 		else
 		{
+			my $len_score = min (0, 1-$ref_length/$tst_ngrams->[1]);
 			# Cumulative N-Gram score
 			$score += log( $matching_ngrams->[ $j ] / $tst_ngrams->[ $j ] );
 			$SCOREmt->{ $j }{ $sys }{ cum } = exp( $score / $j + $len_score );
@@ -840,10 +847,12 @@ sub bleu_score_nosmoothing
 ###############################################################################################################################
 sub bleu_score
 {
-	my ($ref_length, $matching_ngrams, $tst_ngrams, $sys, $SCOREmt) = @_;
+	my ($ref_length, $matching_ngrams, $tst_ngrams, $sys, $SCOREmt,$report_length) = @_;
 	my $score = 0;
 	my $iscore = 0;
-	my $len_score = min (0, 1 - $ref_length / $tst_ngrams->[ 1 ] );
+	my $exp_len_score = 0;
+	$exp_len_score = exp( min (0, 1 - $ref_length / $tst_ngrams->[ 1 ] ) ) if ( $tst_ngrams->[ 1 ] > 0 );
+        print "length ratio: ".($tst_ngrams->[1]/$ref_length)." ($tst_ngrams->[1]/$ref_length), penalty (log): ".log($exp_len_score)."\n" if $report_length;
 	my $smooth = 1;
 	for ( my $j = 1; $j <= $max_Ngram; ++$j )
 	{
@@ -862,7 +871,7 @@ sub bleu_score
 		}
 		$SCOREmt->{ $j }{ $sys }{ ind } = exp( $iscore );
 		$score += $iscore;
-		$SCOREmt->{ $j }{ $sys }{ cum } = exp( $score / $j + $len_score );
+		$SCOREmt->{ $j }{ $sys }{ cum } = exp( $score / $j ) * $exp_len_score;
 	}
 	return $SCOREmt->{ 4 }{ $sys }{ cum };
 }
@@ -1003,7 +1012,7 @@ sub extract_sgml_tag_and_span
 sub extract_sgml_tag_attribute
 {
 	my ($name, $data) = @_;
-	($data =~ m|$name\s*=\s*\"([^\"]*)\"|si) ? ($1) : ();
+	($data =~ m|$name\s*=\s*\"?([^\"]*)\"?|si) ? ($1) : ();
 }
 
 #################################
