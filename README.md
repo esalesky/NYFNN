@@ -4,10 +4,11 @@
 
 ./external_scripts/run-bleu-score.sh 
 	
-	Usage: run-bleu-score.sh [-d] [-h] test ref
+	Usage: run-bleu-score.sh [-d] [-h] output ref.txt ref.xml src.xml tgt_lang
 	Options:
         -d Detokenize the test file after removing bpe splits
         -h Display this help
+        Note: tgt_lang should be written out, eg czech or english
 
 #### useful preprocessing/postprocessing commands
 
