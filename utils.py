@@ -13,9 +13,9 @@ OUTPUT_PATH = 'output/'
 MODEL_PATH = 'models/'
 
 
-def pair2var(sent_pair):
-    src_variable = Variable(torch.LongTensor(sent_pair[0]))
-    tgt_variable = Variable(torch.LongTensor(sent_pair[1]))
+def pair2var(sent_pair, volatile=False):
+    src_variable = Variable(torch.LongTensor(sent_pair[0]), volatile=volatile)
+    tgt_variable = Variable(torch.LongTensor(sent_pair[1]), volatile=volatile)
     if use_cuda:
         return (src_variable.cuda(), tgt_variable.cuda())
     else:
