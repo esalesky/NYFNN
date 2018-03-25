@@ -86,7 +86,7 @@ class MTTrainer:
         self.monitor.start_training()
 
         total_iters = 0
-        
+                
         #self.calc_dev_loss(dev_batches)
 
         for ep in range(num_epochs):
@@ -145,11 +145,11 @@ class MTTrainer:
         for iteration in range(num_batches):
             if iteration % 50 == 0:
                 logger.info("{}/{} dev batches complete".format(iteration, num_batches))
-            src, tgt = pair2var(dev_batches[iteration])
+            src, tgt = pair2var(dev_batches[iteration], volatile=True)
             loss = self.calc_batch_loss(src, tgt)
             total_loss += loss
             # todo: This is not the ideal way to clear the computation graph since it does the full backprop, but doesn't update parameters.
-            loss.backward()
+#            loss.backward()
         avg_loss = total_loss / len(dev_batches)
         return avg_loss.data[0], total_loss.data[0]
 
