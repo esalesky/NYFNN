@@ -128,7 +128,10 @@ class MTTrainer:
             dev_output_file = "dev_output_e{0}.txt".format(ep)
             avg_loss, total_loss = self.calc_dev_loss(dev_batches)
             self.generate(dev_sents_unsorted, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
-            self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
+            done_training = self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
+            if done_training:
+                logger.info("Stopping early: dev loss has not gone down in patience period.")
+                break
             
         # todo: evaluate bleu
 
@@ -144,7 +147,7 @@ class MTTrainer:
         sent_id = 0
         num_batches = len(dev_batches)
         for iteration in range(num_batches):
-            if iteration % 50 == 0:
+            if iteration % 50 == 0 and num_batches > 50:
                 logger.info("{}/{} dev batches complete".format(iteration, num_batches))
             src, tgt = pair2var(dev_batches[iteration], volatile=True)
             loss = self.calc_batch_loss(src, tgt)

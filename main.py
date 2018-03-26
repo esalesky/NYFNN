@@ -46,7 +46,8 @@ def main(args):
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 500000
+    model_every = 500 #not used anymore
+    patience = 5
     bi_enc = True
     # Encoder and decoder hidden size must change together
     enc_hidden_size = 1024
@@ -54,7 +55,7 @@ def main(args):
         enc_hidden_size = int(enc_hidden_size / 2)
     dec_hidden_size = 1024  #paper: 1024
     embed_size = 500   #paper: 500
-    beam_size  = 5
+    beam_size = 5
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
     src_vocab, tgt_vocab, dev_sents_unsorted   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
@@ -91,7 +92,7 @@ def main(args):
 
     monitor = TrainMonitor(model, len(train_sents), print_every=print_every,
                            plot_every=plot_every, save_plot_every=plot_every, model_every=10,
-                           checkpoint_every=model_every)
+                           checkpoint_every=model_every, patience=patience, num_epochs=num_epochs)
 
     trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size, beam_size=beam_size,
                         learning_rate=0.0001)

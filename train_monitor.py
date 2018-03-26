@@ -78,6 +78,7 @@ class PrintCallback(TrainCallback):
         logger.info("Epoch {}: {} ppl, {:.4f}. avg loss, {:.4f}. total loss, {:.4f}".format(epoch, self.loss_type, ppl,
                                                                                             avg_loss, total_loss))
         logger.info("-" * 65)
+        return "continue"
 
 
     def finish_training(self):
@@ -133,25 +134,29 @@ class PlotCallback(TrainCallback):
         if self.perplexity_file:
             self.plot_perplexities.append(perplexity(avg_loss))
             save_plot(self.plot_perplexities, self.perplexity_file, 1)
+        return "continue"
 
     def finish_training(self):
         # Shouldn't need to do anything at this point, since graphs have fixed intervals for plotting
         pass
 
 
+
 """Bootstrap the TrainCallback abstraction to save a model every X epochs when a particular loss
    is calculated. Defaults to saving the model every epoch, can configure to save less frequently with save_every."""
 
-
 class SaveModelCallback(TrainCallback):
 
-    def __init__(self, iters_per_epoch, loss_type, model, model_path='/models/', save_every=0):
+    def __init__(self, iters_per_epoch, loss_type, model, model_path='/models/', save_every=0, patience=5, num_epochs=30):
         super().__init__(iters_per_epoch, loss_type)
         self.model = model
-        self.save_every = save_every
+        self.save_every = save_every  #not used now, save every 1 ep if loss goes down
         self.model_path = model_path
         self.total_loss = 0
-        self.epochs = 0
+        self.num_epochs = num_epochs
+        self.patience=patience     #num epochs to wait for dev loss to go down (below global min)
+        self.dev_loss=float('inf') #init to very large number
+        self.epochs_elapsed=0      #num epochs since dev loss has gone down
 
     def start_training(self):
         pass
@@ -160,22 +165,34 @@ class SaveModelCallback(TrainCallback):
         pass
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
+        status = "continue"
         if loss_type != self.loss_type:
-            return
-        self.epochs += 1
-        if self.epochs % self.save_every == 0:
-            model_name = "model_e{0}_loss{1:.3f}".format(epoch, avg_loss)
+            return status
+        
+        if avg_loss < self.dev_loss:
+            self.dev_loss = avg_loss
+            self.epochs_elapsed = 0
+            if epoch == self.num_epochs-1:  #final epoch
+                t = time.strftime("%Y-%m-%d-%H%M%S", time.localtime(time.time()))
+                model_name = "model_final_{}".format(t)
+            else:
+                model_name = "model_e{0}_loss{1:.3f}".format(epoch, avg_loss)
             self.model.save("{}{}.model".format(self.model_path, model_name))
+        else:
+            self.epochs_elapsed += 1
+            logger.info("Not saving model ({}): dev loss went up".format(self.epochs_elapsed))
+
+        if self.epochs_elapsed == self.patience:
+            status = "done"
+        return status
 
     def finish_training(self):
-        t = time.strftime("%Y-%m-%d-%H%M%S", time.localtime(time.time()))
-        model_name = "model_final_{}".format(t)
-        self.model.save("{}{}.model".format(self.model_path, model_name))
+        pass
 
 
 class TrainMonitor(TrainCallback):
 
-    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, model_every=10, checkpoint_every=1000):
+    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, model_every=10, checkpoint_every=1000, patience=5, num_epochs=30):
         self.checkpoint = checkpoint_every
         self.callbacks = []
         self.callbacks.append(PrintCallback(iters_per_epoch, 'train', print_every=print_every))
@@ -196,7 +213,7 @@ class TrainMonitor(TrainCallback):
         #                                         save_every=checkpoint_every))
         # # Save model
         self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=MODEL_PATH,
-                                                save_every=model_every))
+                                                save_every=model_every, patience=patience, num_epochs=num_epochs))
 
 
     def set_iters(self, iters_per_epoch):
@@ -214,9 +231,13 @@ class TrainMonitor(TrainCallback):
             c.finish_iter(loss_type, loss)
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
+        done = False
         for c in self.callbacks:
-            c.finish_epoch(epoch, loss_type, avg_loss, total_loss)
-
+            status = c.finish_epoch(epoch, loss_type, avg_loss, total_loss)
+            if status=="done":
+                done = True
+        return done
+    
     def finish_training(self):
         for c in self.callbacks:
             c.finish_training()
