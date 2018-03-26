@@ -2,7 +2,6 @@ import torch
 from torch.autograd import Variable
 from preprocessing import SOS, EOS
 from utils import use_cuda
-import numpy as np
 
 
 class Beam():
@@ -141,7 +140,7 @@ class Beam():
         # Get the length normalized path/candidate scores
         scores = {p: source[p]['score'] / (len(p) - 1) for p in source}
         if enforce_length:
-            length_penalty = lambda p: np.abs(self.source_len - len(p)) / len(p)
+            length_penalty = lambda p: 1 + abs(self.source_len - len(p)) / len(p)
             scores = {p: score * length_penalty(p) for p, score in scores.items()}
         # Select the top paths from this
         top_paths = sorted(scores, key=scores.get, reverse=True)[:n]
