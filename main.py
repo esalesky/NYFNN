@@ -46,7 +46,8 @@ def main(args):
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 500 #not used anymore
+    model_every = 5  #not used w/early stopping
+    checkpoint_every = 50000 #for intermediate dev loss/output. set high enough to not happen
     patience = 5
     bi_enc = True
     # Encoder and decoder hidden size must change together
@@ -91,8 +92,8 @@ def main(args):
         model = model.cuda()
 
     monitor = TrainMonitor(model, len(train_sents), print_every=print_every,
-                           plot_every=plot_every, save_plot_every=plot_every, model_every=10,
-                           checkpoint_every=model_every, patience=patience, num_epochs=num_epochs)
+                           plot_every=plot_every, save_plot_every=plot_every, model_every=model_every,
+                           checkpoint_every=checkpoint_every, patience=patience, num_epochs=num_epochs)
 
     trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size, beam_size=beam_size,
                         learning_rate=0.0001)
