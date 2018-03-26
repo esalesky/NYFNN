@@ -118,11 +118,14 @@ class Beam():
         """Return the decoder outputs and word idxs from the best path."""
         try:
             best_path = self._get_topn_candidates(1)[0]
+            outputs = self.candidates[best_path]['outputs']
+            attn_weights = self.candidates[best_path]['attn_weights']
         except IndexError:
             # No terminating sentence was generated, so we get the best non-terminating one
             best_path = self._get_topn_paths(1)[0]
-        outputs = self.candidates[best_path]['outputs']
-        attn_weights = self.candidates[best_path]['attn_weights']
+            outputs = self[best_path]['outputs']
+            attn_weights = self[best_path]['attn_weights']
+
         # Return everything with some slight reshaping
         outputs = [*map(lambda o: o.squeeze(1), outputs)]
         return outputs, list(best_path), torch.cat(attn_weights, dim=1)
@@ -140,7 +143,10 @@ class Beam():
         # Get the length normalized path/candidate scores
         scores = {p: source[p]['score'] / (len(p) - 1) for p in source}
         if enforce_length:
-            length_penalty = lambda p: 1 + abs(self.source_len - len(p)) / len(p)
+            # This hyper param is based on the ratio of c_len / e_len
+            # Currently it is just 1, but would be 0.77 for the sent len ratio
+            hyper_param = 0.77
+            length_penalty = lambda p: 1 + abs(hyper_param * self.source_len - len(p)) / len(p)
             scores = {p: score * length_penalty(p) for p, score in scores.items()}
         # Select the top paths from this
         top_paths = sorted(scores, key=scores.get, reverse=True)[:n]
