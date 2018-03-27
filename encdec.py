@@ -195,7 +195,9 @@ class AttnDecoder(nn.Module):
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
         batch_size = init_hidden.shape[1]
         if self.bidirectional_enc:
-            self.hidden = torch.cat((init_hidden[0], init_hidden[1]), 1).view(1, batch_size, -1)
+           self.hidden = Variable(torch.zeros(self.num_layers, batch_size, self.hidden_size))  #init to correct size
+           for x in range(self.num_layers):
+               self.hidden[x] = torch.cat((init_hidden[2*x], init_hidden[1+2*x]), 1)  #concatenate the appropriate bidirectional hidden states
         else:
             self.hidden = init_hidden
         decoder_input = Variable(torch.LongTensor(batch_size * [[SOS]]))
@@ -220,7 +222,9 @@ class AttnDecoder(nn.Module):
         # The hidden state in RNNs in Pytorch is always (seq_length, batch_size, emb_size) - even if you use batch_first
         # Note that during generation, the batch size should always be 1
         if self.bidirectional_enc:
-            self.hidden = torch.cat((init_hidden[0], init_hidden[1]), 1).view(1, 1, -1)
+            self.hidden = Variable(torch.zeros(self.num_layers, 1, self.hidden_size))  #init to correct size
+            for x in range(self.num_layers):
+                self.hidden[x] = torch.cat((init_hidden[2*x], init_hidden[1+2*x]), 1)  #concatenate the appropriate bidirectional hidden states
         else:
             self.hidden = init_hidden
         # Setup inputs and contexts

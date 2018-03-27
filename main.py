@@ -43,7 +43,7 @@ def main(args):
     batch_size = 80
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
-    num_epochs  = 30
+    num_epochs  = 20
     print_every = 50
     plot_every  = 50
     model_every = 5  #not used w/early stopping
