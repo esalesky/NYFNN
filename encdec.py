@@ -196,6 +196,8 @@ class AttnDecoder(nn.Module):
         batch_size = init_hidden.shape[1]
         if self.bidirectional_enc:
            self.hidden = Variable(torch.zeros(self.num_layers, batch_size, self.hidden_size))  #init to correct size
+           if use_cuda:
+               self.hidden = self.hidden.cuda()               
            for x in range(self.num_layers):
                self.hidden[x] = torch.cat((init_hidden[2*x], init_hidden[1+2*x]), 1)  #concatenate the appropriate bidirectional hidden states
         else:
@@ -223,6 +225,8 @@ class AttnDecoder(nn.Module):
         # Note that during generation, the batch size should always be 1
         if self.bidirectional_enc:
             self.hidden = Variable(torch.zeros(self.num_layers, 1, self.hidden_size))  #init to correct size
+            if use_cuda:
+                self.hidden = self.hidden.cuda()
             for x in range(self.num_layers):
                 self.hidden[x] = torch.cat((init_hidden[2*x], init_hidden[1+2*x]), 1)  #concatenate the appropriate bidirectional hidden states
         else:
