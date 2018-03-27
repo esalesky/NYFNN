@@ -45,8 +45,7 @@ def main(args):
     src_vocab, tgt_vocab, dev_sents   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length,
                                                      src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
 
-
-    trainer = MTTrainer(model, None, optim_type='Adam', batch_size=1,
+    trainer = MTTrainer(model, None, optim_type='Adam', batch_size=1, beam_size=5,
                         learning_rate=0.0001)
     avg_loss, total_loss = trainer.generate(dev_sents, src_vocab, tgt_vocab, max_gen_length, args.output, plot_attn=True)
     print("Total dev loss: {}, Average dev loss: {}".format(total_loss, avg_loss))

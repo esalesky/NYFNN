@@ -4,7 +4,7 @@ import pickle
 import torch
 import random
 
-from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder
+from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder, CondGruDecoder
 from preprocessing import input_reader
 from utils import use_cuda, MODEL_PATH
 from training import MTTrainer
@@ -15,6 +15,7 @@ import torch
 import random
 
 def main(args):
+
     logger = logging.getLogger(__name__)
     logger.info("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
 
@@ -43,7 +44,7 @@ def main(args):
     batch_size = 80
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
-    num_epochs  = 20
+    num_epochs  = 30
     print_every = 50
     plot_every  = 50
     model_every = 5  #not used w/early stopping
@@ -57,6 +58,7 @@ def main(args):
     dec_hidden_size = 1024  #paper: 1024
     embed_size = 500   #paper: 500
     beam_size = 5
+    cond_gru_dec = True
     
     src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
     src_vocab, tgt_vocab, dev_sents_unsorted   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
@@ -81,11 +83,15 @@ def main(args):
         enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size,
                          hidden_size=enc_hidden_size, rnn_type='GRU',
                          num_layers=1, bidirectional=bi_enc)
-        dec = AttnDecoder(enc_size=enc_hidden_size,vocab_size=output_size,
-                          embed_size=embed_size, hidden_size=dec_hidden_size,
-                          rnn_type='GRU', num_layers=1, bidirectional_enc=bi_enc,
-                          tgt_vocab=tgt_vocab)
-        # dec = RNNDecoder(vocab_size=output_size, embed_size=embed_size, hidden_size=hidden_size, rnn_type='GRU', num_layers=1, bidirectional=False)
+        if cond_gru_dec:
+            dec = CondGruDecoder(enc_size=enc_hidden_size, vocab_size=output_size,
+                                 embed_size=embed_size, hidden_size=dec_hidden_size, bidirectional_enc=bi_enc)
+        else:
+            dec = AttnDecoder(enc_size=enc_hidden_size,vocab_size=output_size,
+                              embed_size=embed_size, hidden_size=dec_hidden_size,
+                              rnn_type='GRU', num_layers=1, bidirectional_enc=bi_enc,
+                              tgt_vocab=tgt_vocab)
+
         model = EncDec(enc, dec)
 
     if use_cuda:
