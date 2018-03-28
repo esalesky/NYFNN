@@ -165,8 +165,8 @@ class Beam():
 
     def is_ended(self, curr_len):
         """Check if all beams have terminated."""
-        #if self.ended_paths >= self.size and len(self.candidates) >= 1:
-        if curr_len > self.source_len:
+        if self.ended_paths >= self.size and len(self.candidates) >= 1:
+            #if curr_len > self.source_len:
             # All the paths have EOS as their top choice
             return True
         else:
