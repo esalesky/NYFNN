@@ -84,7 +84,7 @@ class ConditionalGRUAttn(nn.Module):
         self.first_cell = nn.GRUCell(input_size=self.input_size, hidden_size=self.hidden_size)
         self.second_cell = nn.GRUCell(input_size=self.hidden_size, hidden_size=self.hidden_size)
         # todo: They use a tanh layer for attention
-        self.attn = Attn(self.context_size * 2, self.hidden_size)
+        self.attn = TanhAttn(self.context_size * 2, self.hidden_size)
         self.first_cell.reset_parameters()
         self.second_cell.reset_parameters()
 

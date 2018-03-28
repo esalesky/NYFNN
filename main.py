@@ -41,7 +41,7 @@ def main(args):
         random.seed(69)
     
     max_num_sents = int(args.maxnumsents)
-    batch_size = 80
+    batch_size = 60
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
     max_gen_length  = 100    
     num_epochs  = 30
@@ -49,7 +49,7 @@ def main(args):
     plot_every  = 50
     model_every = 5  #not used w/early stopping
     checkpoint_every = 50000 #for intermediate dev loss/output. set high enough to not happen
-    patience = 5
+    patience = 10
     bi_enc = True
     # Encoder and decoder hidden size must change together
     enc_hidden_size = 1024
