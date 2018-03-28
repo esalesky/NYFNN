@@ -10,6 +10,7 @@ class CzechMorphologyTransformer():
         self.tagger = Tagger.load(tagger_file)
         self.tokenizer = self.tagger.newTokenizer()
         self.tok_only = True if mode == 'tokenize' else False
+        self.output_tags = True if mode == 'morph' else False
 
     def morph_enc(self, sentence):
         forms = Forms()
@@ -33,9 +34,27 @@ class CzechMorphologyTransformer():
                     add_info = word.find('_')
                     if add_info > - 1:
                         word = word[:add_info]
-                    output.append(tag)
+                    if self.output_tags:
+                        output.append(tag)
                     output.append(word)
         return ' '.join(output)
+
+    def get_forms(self, sentence):
+        forms = Forms()
+        tokens = TokenRanges()
+        lemmas = TaggedLemmas()
+        self.tokenizer.setText(sentence)
+        output = set()
+        while self.tokenizer.nextSentence(forms, tokens):
+            self.tagger.tag(forms, lemmas)
+            for i in range(len(lemmas)):
+                lemma = lemmas[i]
+                # token = tokens[i]
+                tag = lemma.tag
+                # Trim off the additional info
+                output.add(tag)
+        return output
+
 
     # Decodes morphology-encoded czech sentences. Expects format of: tag1 lemma1 tag2 lemma2...
     def morph_dec(self, enc_sentence):
