@@ -146,7 +146,7 @@ class Beam():
         if enforce_length:
             # This hyper param is based on the ratio of c_len / e_len
             # Currently it is just 1, but would be 0.77 for the sent len ratio
-            hyper_param = 1
+            hyper_param = 0.77
             length_penalty = lambda p: 1 + abs(hyper_param * self.source_len - len(p)) / self.source_len
             scores = {p: score * length_penalty(p) for p, score in scores.items()}
         # Select the top paths from this
