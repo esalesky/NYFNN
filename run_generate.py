@@ -31,7 +31,7 @@ def main(args):
         train_prefix = 'data/{}/bped/train.tags.{}'.format(pair, pair)
         dev_prefix   = 'data/{}/bped/IWSLT16.TED.tst2012.{}'.format(pair, pair)
         tst_prefix   = 'data/{}/bped/IWSLT16.TED.tst2013.{}'.format(pair, pair)
-        file_suffix  = ".bpe"
+        file_suffix  = ".tok.bpe"
 
     # Load the model
     model = torch.load(args.model)
