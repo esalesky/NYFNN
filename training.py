@@ -72,7 +72,6 @@ class MTTrainer:
         loss.backward()
         torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0) #gradient clipping
         self.optimizer.step()
-
         return loss.data[0]
 
     def train(self, train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab,
@@ -176,7 +175,7 @@ class MTTrainer:
             # print(attention)
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
             src_words = [src_vocab.idx2word[i] for i in src_ref]
-            if plot_attn:
+            if plot_attn and attention is not None:
                 plot_attention(src_words, predicted_words, attention.data.cpu().numpy(), 'output/' + str(sent_id) + '.png')
 
             if predicted_words[0] == SOS_TOKEN:

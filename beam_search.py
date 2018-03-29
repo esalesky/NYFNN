@@ -64,7 +64,7 @@ class Beam():
         """Delete a candidate from the dict of possible candidates."""
         return self.candidates.pop(candidate)
 
-    def add_paths(self, path, outputs, attn, context, hidden):
+    def add_paths(self, path, outputs, context, hidden, attn=None):
         """Add potential branching paths to be checked/pruned later.
 
         Adds the top self.size paths to the list of possible paths.
@@ -77,9 +77,11 @@ class Beam():
         hist_outputs = self[path]['outputs']
         new_outputs = hist_outputs
         new_outputs.append(outputs)
-        hist_attn = self[path]['attn_weights']
-        new_attn = hist_attn
-        new_attn.append(attn.squeeze(1).transpose(0, 1))
+        new_attn = None
+        if attn is not None:
+            hist_attn = self[path]['attn_weights']
+            new_attn = list([v for v in hist_attn])
+            new_attn.append(attn.squeeze(1).transpose(0, 1))
         hist_score = self[path]['score']
 
         if top_idx[0] == EOS:
@@ -129,7 +131,10 @@ class Beam():
 
         # Return everything with some slight reshaping
         outputs = [*map(lambda o: o.squeeze(1), outputs)]
-        return outputs, list(best_path), torch.cat(attn_weights, dim=1)
+        attn_matrix = None
+        if attn_weights:
+            attn_matrix = torch.cat(attn_weights, dim=1)
+        return outputs, list(best_path), attn_matrix
 
     def _get_topn_paths(self, n):
         """Return a list of the top n paths."""
