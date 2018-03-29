@@ -169,9 +169,12 @@ class SaveModelCallback(TrainCallback):
         if loss_type != self.loss_type:
             return status
         
-        #if avg_loss < self.dev_loss:
-        self.dev_loss = avg_loss
-        self.epochs_elapsed = 0
+        if avg_loss < self.dev_loss:
+            self.dev_loss = avg_loss
+            self.epochs_elapsed = 0
+        else:
+            self.epochs_elapsed += 1
+            logger.info("Dev loss increased, patience at ({}/{})".format(self.epochs_elapsed, self.patience))
         if epoch == self.num_epochs-1:  #final epoch
             t = time.strftime("%Y-%m-%d-%H%M%S", time.localtime(time.time()))
             model_name = "model_final_{}".format(t)
