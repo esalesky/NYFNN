@@ -1,9 +1,11 @@
 from ufal.morphodita import *
-
+import logging
+import logging.config
 """Czech morphological analyzer. Can be used to split files of czech sentences into the format: tag1 lemma1 tag2 lemma2
 Alternatively can simply be used to tokenize Czech by setting the mode to 'tokenize'. Default mode is 'morph'. """
-class CzechMorphologyTransformer():
 
+logger = logging.getLogger(__name__)
+class CzechMorphologyTransformer():
 
     def __init__(self, dict_file, tagger_file, mode='morph'):
         self.morpho = Morpho.load(dict_file)
@@ -57,12 +59,17 @@ class CzechMorphologyTransformer():
 
 
     # Decodes morphology-encoded czech sentences. Expects format of: tag1 lemma1 tag2 lemma2...
-    def morph_dec(self, enc_sentence):
+    def morph_dec(self, enc_sentence, sent_num):
+        if len(enc_sentence) % 2 == 1:
+            logger.error("Sentence {} has odd number of tokens, outputs may be irregular.".format(sent_num))
         lemmas_forms = TaggedLemmasForms()
         sent = enc_sentence.split()
         output = []
         for i in range(0, len(sent), 2):
             tag = sent[i]
+            if i + 1 >= len(sent):
+                logger.warning("Skipping final tag {} because of odd number of words.".format(tag))
+            
             lemma = sent[i+1]
             # For punctuation, unknown words, and numerals(better to transpose them than drop them)
             if tag.startswith('Z') or tag.startswith('X') or tag.startswith('C'):
@@ -79,6 +86,5 @@ class CzechMorphologyTransformer():
                     break
                 if appended:
                     break
-
 
         return ' '.join(output)
