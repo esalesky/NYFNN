@@ -25,15 +25,26 @@ def main(args):
 
     fixed_seeds=True
     if args.debug:
-        train_prefix = 'data/examples/debug'
-        dev_prefix = 'data/examples/debug'
-        tst_prefix = 'data/examples/debug'
-        file_suffix = ''
+        train_src = 'data/examples/debug.en'
+        train_tgt = 'data/examples/debug.cs'
+        dev_src = 'data/examples/debug.en'
+        dev_tgt = 'data/examples/debug.cs'
+        tst_src = 'data/examples/debug.en'
+        tst_tgt = 'data/examples/debug.cs'
     else:
-        train_prefix = 'data/{}/bped/train.tags.{}'.format(pair, pair)
-        dev_prefix   = 'data/{}/bped/IWSLT16.TED.tst2012.{}'.format(pair, pair)
-        tst_prefix   = 'data/{}/bped/IWSLT16.TED.tst2013.{}'.format(pair, pair)
-        file_suffix  = ".tok.bpe"
+        src_dir = "bped"
+        tgt_dir = "bped"
+#        tgt_dir = "morphgen_bpe"
+        src_suffix = ".tok.bpe"
+        tgt_suffix = ".tok.bpe"
+#        tgt_suffix = "-morph.bpe"
+
+        train_src = 'data/{}/{}/train.tags.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
+        train_tgt = 'data/{}/{}/train.tags.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
+        dev_src   = 'data/{}/{}/IWSLT16.TED.tst2012.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
+        dev_tgt   = 'data/{}/{}/IWSLT16.TED.tst2012.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
+        tst_src   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
+        tst_tgt   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
     if fixed_seeds:
         torch.manual_seed(69)
         if use_cuda:
@@ -43,11 +54,11 @@ def main(args):
     max_num_sents = int(args.maxnumsents)
     batch_size = 60
     max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
-    max_gen_length  = 100    
+    max_gen_length  = 100 #100 for baseline, probably 150 (or 200) for morphgen to be safe
     num_epochs  = 30
     print_every = 50
     plot_every  = 50
-    model_every = 5  #not used w/early stopping
+    model_every = 1  #not used w/early stopping
     checkpoint_every = 50000 #for intermediate dev loss/output. set high enough to not happen
     patience = 10
     bi_enc = True
@@ -60,11 +71,12 @@ def main(args):
     beam_size = 5
     cond_gru_dec = True
     
-    src_vocab, tgt_vocab, train_sents = input_reader(train_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, file_suffix=file_suffix, sort=True)
-    src_vocab, tgt_vocab, dev_sents_unsorted   = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
-    src_vocab, tgt_vocab, dev_sents_sorted = input_reader(dev_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length,
-                                                   src_vocab, tgt_vocab, file_suffix=file_suffix, sort=True, filt=False)
-    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_prefix, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, file_suffix=file_suffix, filt=False)
+    src_vocab, tgt_vocab, train_sents = input_reader(train_src, train_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length, sort=True)
+    src_vocab, tgt_vocab, dev_sents_unsorted = input_reader(dev_src, dev_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length,
+                                                            src_vocab, tgt_vocab, filt=False)
+    src_vocab, tgt_vocab, dev_sents_sorted   = input_reader(dev_src, dev_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length,
+                                                            src_vocab, tgt_vocab, sort=True, filt=False)
+    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_src, tst_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, filt=False)
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()
