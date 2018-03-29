@@ -152,6 +152,11 @@ class CondGruDecoder(nn.Module):
         # nn.rnn internally makes input_size=hidden_size for >1 layer
         self.rnn = ConditionalGRUAttn(input_size=hidden_size, context_size=enc_size, hidden_size=hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, vocab_size)
+        self.out_ctx = nn.Linear(hidden_size, hidden_size)
+        self.out_hid = nn.Linear(hidden_size, hidden_size)
+        self.out_embed = nn.Linear(hidden_size, hidden_size)
+        self.out_nonlin = nn.Tanh()
+
         self.softmax = nn.LogSoftmax(dim=2)  #dim corresponding to vocab
         self.hidden = None
 
@@ -220,20 +225,29 @@ class CondGruDecoder(nn.Module):
         # return outputs, words, torch.cat(attn_weights_matrix, dim=1)
 
     # Passes a single word through the decoder network
-    def __forward_one_word(self, tgt_word, encoder_outputs, attn_scores, hidden=None):
+    def __forward_one_word(self, prev_word, encoder_outputs, attn_scores, hidden=None):
 
         if hidden is None:
             hidden = self.hidden
-        batch_size = tgt_word.shape[0]
-        embedded = self.embedding(tgt_word).view(batch_size, 1, -1)  #dims are (batch size, num words (1), emb size)
+        batch_size = prev_word.shape[0]
+        embedded = self.embedding(prev_word).view(batch_size, 1, -1)  #dims are (batch size, num words (1), emb size)
 
-        rnn_output, attention, self.hidden = self.rnn(embedded, hidden, encoder_outputs, attn_scores)
+        rnn_output, attention, self.hidden, context = self.rnn(embedded, hidden, encoder_outputs, attn_scores)
 
         # predict next word using rnn output and context vector
-        output = self.out(rnn_output)
+        # output = self.out(rnn_output)
+        output = self._deep_out(rnn_output, embedded, context)
         output = self.softmax(output)
 
         return output, attention, self.hidden
+
+    def _deep_out(self, rnn_state, prev_word, context):
+        """Nematus paper says output is linear combination of rnn output, prev word, and context"""
+        # print(rnn_state.shape, prev_word.shape, context.shape)
+        embed_out = self.out_embed(prev_word)
+        rnn_out = self.out_hid(rnn_state)
+        ctx_out = self.out_ctx(context)
+        return self.out(self.out_nonlin(embed_out + rnn_out + ctx_out))
 
     def save(self, fname):
         """Save the model using pytorch's format"""
