@@ -108,6 +108,7 @@ class ConditionalGRUAttn(nn.Module):
         num_steps = input_.shape[0]
 
         outputs = []
+        contexts = []
         attention = []
         hidden = hidden.squeeze(1)
         # print("Attention scores shape", attn_scores.shape)
@@ -125,6 +126,7 @@ class ConditionalGRUAttn(nn.Module):
             # print("Attention weights", attn_weights)
             # (batch_size, 1, src_len) * (batch_size, src_len, hidden_size) --> (batch_size, 1, hidden_size)
             context = attn_weights.bmm(context)
+            contexts.append(context)
             # print("Context shape: ", context.shape)
             output = self.second_cell(interim_hidden, context.squeeze(1))
             # print("Output shape: ", output.shape)
@@ -133,8 +135,10 @@ class ConditionalGRUAttn(nn.Module):
 
         output = torch.stack(outputs, 0)
         attention = torch.stack(attention, 0).squeeze(0)
+        context = torch.stack(contexts, 0).squeeze(0)
+        # print(context.shape)
         # print("Output", output.shape)
         if self.batch_first:
             output = output.transpose(0, 1)
         #Return the compacted outputs and the final hidden state
-        return output, attention, hidden
+        return output, attention, hidden, context
