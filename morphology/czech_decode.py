@@ -1,13 +1,13 @@
 import argparse
-from morphology.analyze_czech import CzechMorphologyTransformer
+from analyze_czech import CzechMorphologyTransformer
 
 
 def main(args):
     transformer = CzechMorphologyTransformer(args.dictionary, args.tagger)
     lines = [line for line in open(args.file, encoding='utf-8')]
     outfile = open(args.file + ".demorph", "w+", encoding='utf-8')
-    for line in lines:
-        decoded = transformer.morph_dec(line.strip())
+    for sent_num, line in enumerate(lines):
+        decoded = transformer.morph_dec(line.strip(), sent_num)
         outfile.write(decoded + "\n")
     outfile.close()
 

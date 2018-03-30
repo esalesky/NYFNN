@@ -60,17 +60,18 @@ class CzechMorphologyTransformer():
 
     # Decodes morphology-encoded czech sentences. Expects format of: tag1 lemma1 tag2 lemma2...
     def morph_dec(self, enc_sentence, sent_num):
-        if len(enc_sentence) % 2 == 1:
-            logger.error("Sentence {} has odd number of tokens, outputs may be irregular.".format(sent_num))
-        lemmas_forms = TaggedLemmasForms()
         sent = enc_sentence.split()
+        if len(sent) % 2 == 1:
+            logger.error("Sentence {} has odd number of tokens, outputs may be irregular.".format(sent_num+1)) # to make 1-indexed
+        lemmas_forms = TaggedLemmasForms()
         output = []
         for i in range(0, len(sent), 2):
             tag = sent[i]
             if i + 1 >= len(sent):
                 logger.warning("Skipping final tag {} because of odd number of words.".format(tag))
-            
-            lemma = sent[i+1]
+                lemma = ""  # if odd number of tokens, cant access i+i for last i (greater than last index)
+            else:
+                lemma = sent[i+1]
             # For punctuation, unknown words, and numerals(better to transpose them than drop them)
             if tag.startswith('Z') or tag.startswith('X') or tag.startswith('C'):
                 output.append(lemma)
