@@ -71,5 +71,5 @@ TGT_XML="$TGT_FILE.sgm"
 echo ""
 echo "scoring file $TGT_XML with mteval-v13a:"
 echo ""
-perl $DIR/wrap-xml.perl $LANG $SRC_XML $SYSTEM_ID < $DEBPE_FILE > $TGT_XML
+perl $DIR/wrap-xml.perl $LANG $SRC_XML $SYSTEM_ID < $TGT_FILE > $TGT_XML
 perl $DIR/mteval-v13a.pl -r $REF_XML -s $SRC_XML -t $TGT_XML
