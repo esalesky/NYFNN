@@ -18,6 +18,11 @@ fi
 
 #base to keep separate from morphgen data
 OUTDIR=./data/en-cs/bped_base_$NUM_SPLITS
+TGTDIR=./data/en-cs/tokenized-$LNG
+SUFFIX=".tok.txt"
+#OUTDIR=./data/en-cs/bped_base_$NUM_SPLITS
+#TGTDIR=./data/en-cs/czech-morph
+#SUFFIX="-morph.txt"
 
 #set language abbreviation
 if [[ "$LNG" == "english" ]]; then
@@ -31,6 +36,6 @@ if [[ ! -e $OUTDIR ]]; then
     mkdir $OUTDIR
 fi
 
-./subword-nmt/learn_bpe.py -s $NUM_SPLITS < ./data/en-cs/tokenized-$LNG/train.tags.en-cs.$LG.tok.txt > $OUTDIR/${LG}_codes.$NUM_SPLITS
+./subword-nmt/learn_bpe.py -s $NUM_SPLITS < $TGTDIR/train.tags.en-cs.$LG$SUFFIX > $OUTDIR/${LG}_codes.$NUM_SPLITS
 
-for X in ./data/en-cs/tokenized-$LNG/*; do FILE=${X##*/}; ./subword-nmt/apply_bpe.py -c $OUTDIR/${LG}_codes.$NUM_SPLITS -i $X -o $OUTDIR/${FILE%.txt}.bpe; done
+for X in $TGTDIR/*; do FILE=${X##*/}; ./subword-nmt/apply_bpe.py -c $OUTDIR/${LG}_codes.$NUM_SPLITS -i $X -o $OUTDIR/${FILE%.txt}.bpe; done
