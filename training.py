@@ -8,7 +8,7 @@ from torch.autograd import Variable
 from torch.optim import lr_scheduler
 
 #local imports
-from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity, MODEL_PATH, OUTPUT_PATH
+from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity
 from preprocessing import SOS, SOS_TOKEN, EOS, EOS_TOKEN
 from batching import make_batches
 
@@ -75,7 +75,7 @@ class MTTrainer:
         return loss.data[0]
 
     def train(self, train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab,
-              num_epochs, max_gen_length=100, debug=False):
+              num_epochs, max_gen_length=100, debug=False, output_path="output/"):
 
         batches = make_batches(train_sents, self.batch_size)
         dev_batches = make_batches(dev_sents_sorted, self.batch_size)
@@ -117,8 +117,8 @@ class MTTrainer:
                     logger.info("Calculating dev loss + writing output")
                     ep_fraction = (iteration + 1) / num_batches
                     dev_output_file = "dev_output_e{0}.{1}.txt".format(ep, ep_fraction)
-                    avg_loss, total_loss = self.generate(dev_sents_unsorted, src_vocab,
-                                                         tgt_vocab, max_gen_length, dev_output_file)
+                    avg_loss, total_loss = self.generate(dev_sents_unsorted, src_vocab, tgt_vocab,
+                                                         max_gen_length, dev_output_file, output_path)
                     self.monitor.finish_iter('dev-cp', avg_loss)
 
             # end of epoch
@@ -126,7 +126,7 @@ class MTTrainer:
             logger.info("Calculating dev loss + writing output")
             dev_output_file = "dev_output_e{0}.txt".format(ep)
             avg_loss, total_loss = self.calc_dev_loss(dev_batches)
-            self.generate(dev_sents_unsorted, src_vocab, tgt_vocab, max_gen_length, dev_output_file)
+            self.generate(dev_sents_unsorted, src_vocab, tgt_vocab, max_gen_length, dev_output_file, output_path)
             done_training = self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
             if done_training:
                 logger.info("Stopping early: dev loss has not gone down in patience period.")
@@ -137,7 +137,7 @@ class MTTrainer:
         self.monitor.finish_training()
 
         tst_output_file = "tst_output_e{0}.txt".format(ep)
-        avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file)
+        avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
         self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
 
     def calc_dev_loss(self, dev_batches):
@@ -157,7 +157,7 @@ class MTTrainer:
         return avg_loss.data[0], total_loss.data[0]
 
     #todo: generation
-    def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt', plot_attn=False):
+    def generate(self, sents, src_vocab, tgt_vocab, max_gen_length, output_file='output.txt', output_path="output/", plot_attn=False):
         """Generate sentences, and compute the average loss."""
 
         total_loss = 0.0
@@ -176,7 +176,7 @@ class MTTrainer:
             predicted_words = [tgt_vocab.idx2word[i] for i in predicted]
             src_words = [src_vocab.idx2word[i] for i in src_ref]
             if plot_attn and attention is not None:
-                plot_attention(src_words, predicted_words, attention.data.cpu().numpy(), 'output/' + str(sent_id) + '.png')
+                plot_attention(src_words, predicted_words, attention.data.cpu().numpy(), output_path + str(sent_id) + '.png')
 
             if predicted_words[0] == SOS_TOKEN:
                 predicted_words = predicted_words[1:]
@@ -194,7 +194,7 @@ class MTTrainer:
                 logger.info("Processed {} sentences.".format(num_processed))
 
 
-        with open(OUTPUT_PATH + '/' + output_file, 'w', encoding='utf-8') as f:
+        with open(output_path + '/' + output_file, 'w', encoding='utf-8') as f:
             f.write("\n".join(output))
 
         avg_loss = total_loss / len(sents)

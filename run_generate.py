@@ -7,7 +7,7 @@ import torch
 
 # local imports
 from preprocessing import input_reader
-from utils import use_cuda, MODEL_PATH
+from utils import use_cuda
 from training import MTTrainer
 import logging
 import logging.config

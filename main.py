@@ -3,80 +3,45 @@ import argparse
 import pickle
 import torch
 import random
-
-from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder, CondGruDecoder
-from preprocessing import input_reader
-from utils import use_cuda, MODEL_PATH
-from training import MTTrainer
 import logging
 import logging.config
+
+#local imports
+from encdec import RNNEncoder, RNNDecoder, EncDec, AttnDecoder, CondGruDecoder
+from preprocessing import input_reader
+from utils import use_cuda
+from training import MTTrainer
 from train_monitor import TrainMonitor
-import torch
-import random
+
 
 def main(args):
-
+    params = __import__(args.config.replace('.py',''))
     logger = logging.getLogger(__name__)
-    logger.info("Use CUDA: {}".format(use_cuda))  #currently always false, set in utils
+    logger.info("Use CUDA: {}".format(use_cuda))  #set automatically in utils
 
-    src_lang = 'en'
-    tgt_lang = 'cs'  #cs or de
-    pair = "en-" + tgt_lang
-
-    fixed_seeds=True
     if args.debug:
-        train_src = 'data/examples/debug.en'
-        train_tgt = 'data/examples/debug.cs'
-        dev_src = 'data/examples/debug.en'
-        dev_tgt = 'data/examples/debug.cs'
-        tst_src = 'data/examples/debug.en'
-        tst_tgt = 'data/examples/debug.cs'
-    else:
-        src_dir = "bped"
-        tgt_dir = "bped"
-#        tgt_dir = "morphgen_bpe"
-        src_suffix = ".tok.bpe"
-        tgt_suffix = ".tok.bpe"
-#        tgt_suffix = "-morph.bpe"
+        params.train_src = 'data/examples/debug.en'
+        params.train_tgt = 'data/examples/debug.cs'
+        params.dev_src   = 'data/examples/debug.en'
+        params.dev_tgt   = 'data/examples/debug.cs'
+        params.tst_src   = 'data/examples/debug.en'
+        params.tst_tgt   = 'data/examples/debug.cs'
 
-        train_src = 'data/{}/{}/train.tags.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
-        train_tgt = 'data/{}/{}/train.tags.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
-        dev_src   = 'data/{}/{}/IWSLT16.TED.tst2012.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
-        dev_tgt   = 'data/{}/{}/IWSLT16.TED.tst2012.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
-        tst_src   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
-        tst_tgt   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
-    if fixed_seeds:
+    if params.fixed_seeds:
         torch.manual_seed(69)
         if use_cuda:
             torch.cuda.manual_seed(69)
         random.seed(69)
     
     max_num_sents = int(args.maxnumsents)
-    batch_size = 60
-    max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
-    max_gen_length  = 100 #100 for baseline, probably 150 (or 200) for morphgen to be safe
-    num_epochs  = 30
-    print_every = 50
-    plot_every  = 50
-    model_every = 1  #not used w/early stopping
-    checkpoint_every = 50000 #for intermediate dev loss/output. set high enough to not happen
-    patience = 10
-    bi_enc = True
-    # Encoder and decoder hidden size must change together
-    enc_hidden_size = 1024
-    if bi_enc:
-        enc_hidden_size = int(enc_hidden_size / 2)
-    dec_hidden_size = 1024  #paper: 1024
-    embed_size = 500   #paper: 500
-    beam_size = 5
-    cond_gru_dec = True
     
-    src_vocab, tgt_vocab, train_sents = input_reader(train_src, train_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length, sort=True)
-    src_vocab, tgt_vocab, dev_sents_unsorted = input_reader(dev_src, dev_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length,
+    src_vocab, tgt_vocab, train_sents = input_reader(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length, sort=True)
+    src_vocab, tgt_vocab, dev_sents_unsorted = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length,
                                                             src_vocab, tgt_vocab, filt=False)
-    src_vocab, tgt_vocab, dev_sents_sorted   = input_reader(dev_src, dev_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length,
+    src_vocab, tgt_vocab, dev_sents_sorted   = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length,
                                                             src_vocab, tgt_vocab, sort=True, filt=False)
-    src_vocab, tgt_vocab, tst_sents   = input_reader(tst_src, tst_tgt, src_lang, tgt_lang, max_num_sents, max_sent_length, src_vocab, tgt_vocab, filt=False)
+    src_vocab, tgt_vocab, tst_sents          = input_reader(params.tst_src, params.tst_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length,
+                                                            src_vocab, tgt_vocab, filt=False)
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()
@@ -87,21 +52,21 @@ def main(args):
         src_vocab = pickle.load(open(args.srcvocab, 'rb'))
         tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
     else:
-        src_vocab.save("models/src-vocab_" + pair + "_maxnum" + str(max_num_sents) +
-                       "_maxlen" + str(max_sent_length) + ".pkl")
-        tgt_vocab.save("models/tgt-vocab_" + pair + "_maxnum" + str(max_num_sents) +
-                       "_maxlen" + str(max_sent_length) + ".pkl")
+        src_vocab.save(params.MODEL_PATH + "src-vocab_" + params.pair + "_maxnum" + str(max_num_sents) +
+                       "_maxlen" + str(params.max_sent_length) + ".pkl")
+        tgt_vocab.save(params.MODEL_PATH + "tgt-vocab_" + params.pair + "_maxnum" + str(max_num_sents) +
+                       "_maxlen" + str(params.max_sent_length) + ".pkl")
 
-        enc = RNNEncoder(vocab_size=input_size, embed_size=embed_size,
-                         hidden_size=enc_hidden_size, rnn_type='GRU',
-                         num_layers=1, bidirectional=bi_enc)
-        if cond_gru_dec:
-            dec = CondGruDecoder(enc_size=enc_hidden_size, vocab_size=output_size,
-                                 embed_size=embed_size, hidden_size=dec_hidden_size, bidirectional_enc=bi_enc)
+        enc = RNNEncoder(vocab_size=input_size, embed_size=params.embed_size,
+                         hidden_size=params.enc_hidden_size, rnn_type='GRU',
+                         num_layers=1, bidirectional=params.bi_enc)
+        if params.cond_gru_dec:
+            dec = CondGruDecoder(enc_size=params.enc_hidden_size, vocab_size=output_size,
+                                 embed_size=params.embed_size, hidden_size=params.dec_hidden_size, bidirectional_enc=params.bi_enc)
         else:
-            dec = AttnDecoder(enc_size=enc_hidden_size,vocab_size=output_size,
-                              embed_size=embed_size, hidden_size=dec_hidden_size,
-                              rnn_type='GRU', num_layers=1, bidirectional_enc=bi_enc,
+            dec = AttnDecoder(enc_size=params.enc_hidden_size, vocab_size=output_size,
+                              embed_size=params.embed_size, hidden_size=params.dec_hidden_size,
+                              rnn_type='GRU', num_layers=1, bidirectional_enc=params.bi_enc,
                               tgt_vocab=tgt_vocab)
 
         model = EncDec(enc, dec)
@@ -109,15 +74,16 @@ def main(args):
     if use_cuda:
         model = model.cuda()
 
-    monitor = TrainMonitor(model, len(train_sents), print_every=print_every,
-                           plot_every=plot_every, save_plot_every=plot_every, model_every=model_every,
-                           checkpoint_every=checkpoint_every, patience=patience, num_epochs=num_epochs)
+    monitor = TrainMonitor(model, len(train_sents), print_every=params.print_every,
+                           plot_every=params.plot_every, save_plot_every=params.plot_every, model_every=params.model_every,
+                           checkpoint_every=params.checkpoint_every, patience=params.patience, num_epochs=params.num_epochs,
+                           output_path=params.OUTPUT_PATH, model_path=params.MODEL_PATH)
 
-    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=batch_size, beam_size=beam_size,
-                        learning_rate=0.0001)
+    trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=params.batch_size,
+                        beam_size=params.beam_size, learning_rate=0.0001)
 
-    trainer.train(train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab, num_epochs,
-                  max_gen_length=max_gen_length, debug=args.debug)
+    trainer.train(train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab, params.num_epochs,
+                  max_gen_length=params.max_gen_length, debug=args.debug, output_path=params.OUTPUT_PATH)
 
 
 if __name__ == "__main__":
@@ -127,7 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--srcvocab", default=None)
     parser.add_argument("-t", "--tgtvocab", default=None)
     parser.add_argument("-n", "--maxnumsents", default=250000)  #defaults to high enough for all
+    parser.add_argument("-c", "--config", default="params.py")
     args = parser.parse_args()
     logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': 'training.log'})
     main(args)
-

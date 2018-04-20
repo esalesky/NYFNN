@@ -8,10 +8,8 @@ import math
 import torch
 from torch.autograd import Variable
 
-use_cuda = torch.cuda.is_available()
-OUTPUT_PATH = 'output/'
-MODEL_PATH = 'models/'
 
+use_cuda = torch.cuda.is_available()
 
 def pair2var(sent_pair, volatile=False):
     src_variable = Variable(torch.LongTensor(sent_pair[0]), volatile=volatile)
@@ -49,7 +47,7 @@ def save_plot(points, name, freq):
     plt.xlabel('Iteration')
     plt.ylabel(name.title())
     plt.title(name.title())
-    plt.savefig('{}{}.jpg'.format(OUTPUT_PATH, name))
+    plt.savefig('{}.jpg'.format(name))
     plt.close(fig)
 
 

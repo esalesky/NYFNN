@@ -9,7 +9,8 @@ import torch.nn as nn
 from preprocessing import input_reader
 from encdec import RNNEncoder, RNNDecoder, EncDec
 from training import train_setup, generate
-from utils import use_cuda, MODEL_PATH
+from utils import use_cuda
+
 
 def main(args):
     print("Use CUDA: {}".format(use_cuda))  # currently always false, set in utils

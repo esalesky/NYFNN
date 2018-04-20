@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from utils import time_elapsed, perplexity, save_plot, MODEL_PATH
+from utils import time_elapsed, perplexity, save_plot
 
 import logging
 import time
@@ -91,9 +91,9 @@ class PrintCallback(TrainCallback):
 class PlotCallback(TrainCallback):
 
     def __init__(self, iters_per_epoch, loss_type, loss_file, plot_every=0, plot_scale=1, save_every=0,
-                 perplexity_file=None):
+                 perplexity_file=None, output_path="output/"):
         super().__init__(iters_per_epoch, loss_type)
-        self.loss_file = loss_file
+        self.loss_file  = output_path + "/" + loss_file
         self.plot_every = plot_every
         self.save_every = save_every
         self.plot_losses = []
@@ -101,7 +101,7 @@ class PlotCallback(TrainCallback):
         # X-axis scale, allows for plotting values that are pre-averaged
         self.plot_scale = plot_scale * self.plot_every
         if perplexity_file:
-            self.perplexity_file = perplexity_file
+            self.perplexity_file = output_path + "/" + perplexity_file
             self.plot_perplexities = []
 
     def start_training(self):
@@ -147,7 +147,7 @@ class PlotCallback(TrainCallback):
 
 class SaveModelCallback(TrainCallback):
 
-    def __init__(self, iters_per_epoch, loss_type, model, model_path='/models/', save_every=0, patience=5, num_epochs=30):
+    def __init__(self, iters_per_epoch, loss_type, model, model_path='models/', save_every=0, patience=5, num_epochs=30):
         super().__init__(iters_per_epoch, loss_type)
         self.model = model
         self.save_every = save_every  #not used now, save every 1 ep if loss goes down
@@ -195,7 +195,7 @@ class SaveModelCallback(TrainCallback):
 
 class TrainMonitor(TrainCallback):
 
-    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, model_every=10, checkpoint_every=1000, patience=5, num_epochs=30):
+    def __init__(self, model, iters_per_epoch, print_every=1000, plot_every=100, save_plot_every=100, model_every=10, checkpoint_every=1000, patience=5, num_epochs=30, output_path="output/", model_path="models/"):
         self.checkpoint = checkpoint_every
         self.callbacks = []
         self.callbacks.append(PrintCallback(iters_per_epoch, 'train', print_every=print_every))
@@ -204,18 +204,18 @@ class TrainMonitor(TrainCallback):
         self.callbacks.append(PrintCallback(iters_per_epoch, 'test'))
         # Plot train loss every plot_every epochs
         self.callbacks.append(PlotCallback(iters_per_epoch, 'train', 'train_loss', plot_every=plot_every,
-                                           save_every=save_plot_every, perplexity_file='train_perplexity'))
+                                           save_every=save_plot_every, perplexity_file='train_perplexity', output_path=output_path))
         # Want to plot dev loss every time we compute it in trainer, so plot every time we run the checkpoint
         # self.callbacks.append(PlotCallback(iters_per_epoch, 'dev-cp', 'dev_loss', plot_every=1, plot_scale=checkpoint_every,
-        #                                    save_every=1, perplexity_file='dev_perplexity'))
+        #                                    save_every=1, perplexity_file='dev_perplexity', output_path=output_path))
         # Plot dev loss and perplexity once per epoch
         self.callbacks.append(PlotCallback(iters_per_epoch, 'dev', 'dev_epoch_loss',
-                                           perplexity_file='dev_epoch_perplexity'))
+                                           perplexity_file='dev_epoch_perplexity', output_path=output_path))
         # # Save model
-        # self.callbacks.append(SaveModelCallback(iters_per_epoch, 'train', model, model_path=MODEL_PATH,
+        # self.callbacks.append(SaveModelCallback(iters_per_epoch, 'train', model, model_path=model_path,
         #                                         save_every=checkpoint_every))
         # # Save model
-        self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=MODEL_PATH,
+        self.callbacks.append(SaveModelCallback(iters_per_epoch, 'dev', model, model_path=model_path,
                                                 save_every=model_every, patience=patience, num_epochs=num_epochs))
 
 
