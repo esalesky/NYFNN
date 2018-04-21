@@ -16,6 +16,8 @@ from train_monitor import TrainMonitor
 
 def main(args):
     params = __import__(args.config.replace('.py',''))
+
+    logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': '{}/training.log'.format(params.OUTPUT_PATH)})
     logger = logging.getLogger(__name__)
     logger.info("Use CUDA: {}".format(use_cuda))  #set automatically in utils
 
@@ -95,5 +97,4 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--maxnumsents", default=250000)  #defaults to high enough for all
     parser.add_argument("-c", "--config", default="params.py")
     args = parser.parse_args()
-    logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': 'training.log'})
     main(args)
