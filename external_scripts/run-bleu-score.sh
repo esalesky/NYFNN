@@ -44,9 +44,9 @@ if [ "$detok" = "true" ]
 then
 	DETOK_FILE="$DEBPE_FILE.detok"
 	perl $DIR/detokenizer.perl -l cs < $DEBPE_FILE > $DETOK_FILE
-	perl $DIR/multi-bleu.perl -lc $2 < $DETOK_FILE
+	perl $DIR/multi-bleu.perl -lc $REF_FILE < $DETOK_FILE
 else
-	perl $DIR/multi-bleu.perl -lc $2 < $DEBPE_FILE
+	perl $DIR/multi-bleu.perl -lc $REF_FILE < $DEBPE_FILE
 fi
 
 #-----------------------------------------------
