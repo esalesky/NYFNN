@@ -132,13 +132,14 @@ class MTTrainer:
                 logger.info("Stopping early: dev loss has not gone down in patience period.")
                 break
             
-        # todo: evaluate bleu
+            # todo: evaluate bleu
+
+            tst_output_file = "tst_output_e{0}.txt".format(ep)
+            avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
+            self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
 
         self.monitor.finish_training()
 
-        tst_output_file = "tst_output_e{0}.txt".format(ep)
-        avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
-        self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
 
     def calc_dev_loss(self, dev_batches):
         total_loss = 0.0

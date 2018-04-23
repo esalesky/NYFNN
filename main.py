@@ -47,6 +47,8 @@ def main(args):
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()
+    logger.info("src vocab size: {}".format(input_size)
+    logger.info("tgt vocab size: {}".format(output_size)
 
     # Initialize our model
     if args.model is not None:
