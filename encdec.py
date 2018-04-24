@@ -150,7 +150,8 @@ class CondGruDecoder(nn.Module):
         self.embed_linear = nn.Linear(embed_size, hidden_size)
         self.linear = nn.Linear(enc_size, hidden_size)
         # nn.rnn internally makes input_size=hidden_size for >1 layer
-        self.rnn = ConditionalGRUAttn(input_size=hidden_size, context_size=enc_size, hidden_size=hidden_size, batch_first=True)
+        self.rnn = ConditionalGRUAttn(input_size=hidden_size, context_size=enc_size, hidden_size=hidden_size,
+                                      num_layers=2, batch_first=True)
         self.out = nn.Linear(hidden_size, vocab_size)
         self.out_ctx = nn.Linear(hidden_size, hidden_size)
         self.out_hid = nn.Linear(hidden_size, hidden_size)

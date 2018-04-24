@@ -74,7 +74,7 @@ class ConditionalGRUAttn(nn.Module):
 
     """A module that uses an attention layer between 2 GRU layers."""
 
-    def __init__(self, input_size, hidden_size, context_size, batch_first=False):
+    def __init__(self, input_size, hidden_size, context_size, num_layers=1, batch_first=False):
         super(ConditionalGRUAttn, self).__init__()
         # self.attn_type = attn_type  #bilinear, h(src)T * W * h(tgt)
         self.input_size = input_size
@@ -83,6 +83,9 @@ class ConditionalGRUAttn(nn.Module):
         self.batch_first = batch_first
         self.first_cell = nn.GRUCell(input_size=self.input_size, hidden_size=self.hidden_size)
         self.second_cell = nn.GRUCell(input_size=self.hidden_size, hidden_size=self.hidden_size)
+        self.num_layers = num_layers
+        self.subseq_layers = [nn.GRUCell(input_size=self.hidden_size, hidden_size=self.hidden_size) for n in range(num_layers - 1)]
+          #init to correct size
         # todo: They use a tanh layer for attention
         self.attn = TanhAttn(self.context_size * 2, self.hidden_size)
         self.first_cell.reset_parameters()
@@ -95,6 +98,7 @@ class ConditionalGRUAttn(nn.Module):
     """Input is a sequence, hidden is the initial hidden state, context is the sequence of hidden states"""
     def forward(self, input_, hidden, context, attn_scores):
 
+
         if self.batch_first:
             batch_size = input_.shape[0]
             # Reorder dimensions as (seq. length, batch size, hidden size)
@@ -102,6 +106,8 @@ class ConditionalGRUAttn(nn.Module):
             # context = context.transpose(0, 1)
         else:
             batch_size = input_.shape[1]
+
+        subseq_hidden_states = [Variable(torch.zeros(batch_size, self.hidden_size)) for i in range(self.num_layers)]
 
         # print(attn_scores.shape)
 
@@ -132,6 +138,13 @@ class ConditionalGRUAttn(nn.Module):
             # print("Output shape: ", output.shape)
             outputs.append(output)
             hidden = output
+            for i in range(len(self.subseq_layers)):
+                cell = self.subseq_layers[i]
+                subseq_hidden = subseq_hidden_states[i]
+                output = cell(output, subseq_hidden)
+                subseq_hidden = output
+
+
 
         output = torch.stack(outputs, 0)
         attention = torch.stack(attention, 0).squeeze(0)
