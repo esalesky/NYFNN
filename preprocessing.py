@@ -1,5 +1,6 @@
 """read data, create vocab, and preprocess"""
 from sortedcontainers import SortedList
+from collections import defaultdict
 import unicodedata
 import pickle
 try:
@@ -17,8 +18,7 @@ EOS_TOKEN = "</s>"
 UNK_TOKEN = "<unk>"
 
 
-#todo: tokenization, bpe, iwslt xml format
-#todo: import vocabs (so we don't have to do this every time for the same data) ?
+#todo: tokenization, bpe
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +98,6 @@ def read_corpus(source_file, target_file, src_lang, tgt_lang, max_num_sents, src
     src_file = source_file
     tgt_file = target_file
 
-    if src_vocab is None:
-        src_vocab = Vocab(src_lang)
-    if tgt_vocab is None:
-        tgt_vocab = Vocab(tgt_lang)
-
     logger.info("Reading files... src: {}, tgt: {}".format(src_file, tgt_file))
 
     sents = []
@@ -118,11 +113,6 @@ def read_corpus(source_file, target_file, src_lang, tgt_lang, max_num_sents, src
                     break
 
     logger.info("Read {} sentences.".format(len(sents)))
-    src_vocab.freeze_vocab()
-    src_vocab.set_unk(UNK_TOKEN)
-
-    tgt_vocab.freeze_vocab()
-    tgt_vocab.set_unk(UNK_TOKEN)
 
     # Sort the sentence pairs
     if sort:
@@ -130,7 +120,54 @@ def read_corpus(source_file, target_file, src_lang, tgt_lang, max_num_sents, src
     else:
         sents = [*map(SentencePair, sents)]
 
-    return src_vocab, tgt_vocab, sents
+    return sents
+
+
+def create_vocab(source_file, target_file, src_lang, tgt_lang, max_num_sents,
+                 max_sent_length=100, min_sent_length=2, max_vocab_size=50000):
+
+    src_freq = defaultdict(int)
+    tgt_freq = defaultdict(int)
+    
+    src_vocab = Vocab(src_lang)
+    tgt_vocab = Vocab(tgt_lang)
+
+    logger.info("Creating vocabs.")
+
+    sent_counter = 0
+    with open(source_file, encoding='utf-8') as src_sents, open(target_file, encoding='utf-8') as tgt_sents:
+        for src_sent, tgt_sent in zip(src_sents, tgt_sents):
+            src_sent = clean(src_sent)
+            tgt_sent = clean(tgt_sent)
+            if keep_pair((src_sent, tgt_sent), max_sent_length, min_sent_length):
+                src_freq[SOS_TOKEN]+=1
+                src_freq[EOS_TOKEN]+=1
+                tgt_freq[SOS_TOKEN]+=1
+                tgt_freq[EOS_TOKEN]+=1
+                for w in src_sent:
+                    src_freq[w]+=1
+                for w in tgt_sent:
+                    tgt_freq[w]+=1
+
+                sent_counter+=1
+                if sent_counter >= max_num_sents:
+                    break
+
+    #---
+    for v in sorted(src_freq, key=lambda x: src_freq[x], reverse=True)[:max_vocab_size]:
+        src_vocab.map2idx(v)
+    for v in sorted(tgt_freq, key=lambda x: tgt_freq[x], reverse=True)[:max_vocab_size]:
+        tgt_vocab.map2idx(v)
+
+    src_vocab.freeze_vocab()
+    src_vocab.set_unk(UNK_TOKEN)
+
+    tgt_vocab.freeze_vocab()
+    tgt_vocab.set_unk(UNK_TOKEN)
+
+    logger.info("Vocabs created.")
+
+    return src_vocab, tgt_vocab
 
 
 def clean(line):
@@ -147,14 +184,11 @@ def clean(line):
 def input_reader(source_file, target_file, src, tgt, max_num_sents,
                  max_sent_length=100, src_vocab=None, tgt_vocab=None, sort=False, filt=True):
 
-    src_vocab, tgt_vocab, sents = read_corpus(source_file, target_file, src, tgt, max_num_sents,
-                                              src_vocab, tgt_vocab, max_sent_length, min_sent_length=1, sort=sort, filt=filt)
+    sents = read_corpus(source_file, target_file, src, tgt, max_num_sents,
+                        src_vocab, tgt_vocab, max_sent_length, min_sent_length=1, sort=sort, filt=filt)
 
-    if src_vocab is None:
-        logger.info("Vocab sizes: %s %d, %s %d" % (src_vocab.name, src_vocab.vocab_size(),
-                                             tgt_vocab.name, tgt_vocab.vocab_size()))
-    return src_vocab, tgt_vocab, sents
-
+    return sents
+    
 
 #true if sent should not be filtered
 def keep_pair(p, max_sent_length, min_sent_length):
