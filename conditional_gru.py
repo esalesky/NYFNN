@@ -90,6 +90,11 @@ class ConditionalGRUAttn(nn.Module):
         self.attn = TanhAttn(self.context_size * 2, self.hidden_size)
         self.first_cell.reset_parameters()
         self.second_cell.reset_parameters()
+        for cell in self.subseq_layers:
+           if use_cuda:
+               cell.cuda()
+           cell.reset_parameters()
+           print(cell)
 
 
     def calc_attn_scores(self, encoder_outputs):
@@ -107,8 +112,11 @@ class ConditionalGRUAttn(nn.Module):
         else:
             batch_size = input_.shape[1]
 
-        subseq_hidden_states = [Variable(torch.zeros(batch_size, self.hidden_size)) for i in range(self.num_layers)]
-
+        subseq_hidden_states = [Variable(torch.zeros(batch_size, self.hidden_size)).cuda() for i in range(self.num_layers)]
+        if use_cuda:
+            for i in range(len(subseq_hidden_states)):
+                subseq_hidden_states[i] = subseq_hidden_states[i].cuda()
+		
         # print(attn_scores.shape)
 
         num_steps = input_.shape[0]
@@ -142,7 +150,7 @@ class ConditionalGRUAttn(nn.Module):
                 cell = self.subseq_layers[i]
                 subseq_hidden = subseq_hidden_states[i]
                 output = cell(output, subseq_hidden)
-                subseq_hidden = output
+                subseq_hidden_states[i] = output
 
 
 
