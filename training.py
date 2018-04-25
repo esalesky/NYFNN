@@ -11,6 +11,7 @@ from torch.optim import lr_scheduler
 from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity
 from preprocessing import SOS, SOS_TOKEN, EOS, EOS_TOKEN
 from batching import make_batches
+import mod_embed as me
 
 import logging
 from plot_attention import plot_attention
@@ -108,9 +109,6 @@ class MTTrainer:
                 loss = self.train_step(src_sent, tgt_sent)
 
                 self.monitor.finish_iter('train', loss)
-
-                # todo: evaluate function. every X iterations here calculate dev ppl, bleu every epoch at least
-
                 total_iters += 1
 
                 if total_iters % self.monitor.checkpoint == 0:
@@ -138,6 +136,41 @@ class MTTrainer:
             avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
             self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
 
+
+            # todo: check threshold for incremental bpe
+            if False:
+                # add one to current_bpe_step
+                me.CURRENT_BPE_STEP += 1
+                logger.info("moving to next bpe increment: {}".format(me.CURRENT_BPE_STEP))
+                # unfreeze target vocab 
+                tgt_vocab.thaw_vocab()
+                # get new vocab words
+                with open(me.CODE_SET[me.CURRENT_BPE_STEP],'r') as code_file:
+                    line = code_file.readline().strip() #version header
+                    #skip lines in current vocab (prev bpe set)
+                    for _ in range(me.BPE_INC * me.CURRENT_BPE_STEP):
+                        line = code_file.readline()
+                    #first real line
+                    line = code_file.readline().strip().split()
+                    while line:
+                        idx, idy, w = me.merge_bpe(line[0], line[1], tgt_vocab)
+                        # add to vocab
+                        prev_vocab_size = tgt_vocab.vocab_size()
+                        widx = tgt_vocab.map2idx[w]
+                        if widx != prev_vocab_size:
+                            logger.error("! word already in vocab: {}".format(w))
+                        # add to embeddings
+                        me.update_embed(self.model.decoder.embed, idx, idy, operation="avg")
+
+                        line = code_file.readline().strip().split()
+                        linenum += 1
+                # freeze target vocab 
+                tgt_vocab.freeze_vocab()
+                #--------
+                # todo: remap and rebatch sentences as necessary
+                # todo: add to optimizer
+
+        #-----------------------------
         self.monitor.finish_training()
 
 

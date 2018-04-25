@@ -49,6 +49,9 @@ class Vocab:
     def freeze_vocab(self):
         self.vocab_frozen = True
 
+    def thaw_vocab(self):
+        self.vocab_frozen = False
+
     def set_unk(self, unk_word):
         assert self.vocab_frozen, 'Tried to set unk with vocab not frozen'
         if unk_word not in self.word2idx:
