@@ -25,7 +25,8 @@ def optimizer_factory(optim_type, model, **kwargs):
 
 class MTTrainer:
 
-    def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, beam_size=5, learning_rate=0.01):
+    def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, beam_size=5, learning_rate=0.01,
+                 bpe_incrementer=None):
         self.model = model
         self.optimizer = optimizer_factory(optim_type, model, lr=learning_rate)
         # Decay learning rate by a factor of 0.5 (gamma) every 10 epochs (step_size)
@@ -36,6 +37,7 @@ class MTTrainer:
         self.monitor = train_monitor
         self.batch_size = batch_size
         self.beam_size = beam_size
+        self.bpe_incrementer = bpe_incrementer
 
     # Computes loss for a single batch of source and target sentences
     def calc_batch_loss(self, src, tgt):
@@ -129,7 +131,7 @@ class MTTrainer:
             if done_training:
                 logger.info("Stopping early: dev loss has not gone down in patience period.")
                 break
-            
+
             # todo: evaluate bleu
 
             tst_output_file = "tst_output_e{0}.txt".format(ep)
@@ -138,37 +140,14 @@ class MTTrainer:
 
 
             # todo: check threshold for incremental bpe
-            if False:
-                # add one to current_bpe_step
-                me.CURRENT_BPE_STEP += 1
-                logger.info("moving to next bpe increment: {}".format(me.CURRENT_BPE_STEP))
-                # unfreeze target vocab 
-                tgt_vocab.thaw_vocab()
-                # get new vocab words
-                with open(me.CODE_SET[me.CURRENT_BPE_STEP],'r') as code_file:
-                    line = code_file.readline().strip() #version header
-                    #skip lines in current vocab (prev bpe set)
-                    for _ in range(me.BPE_INC * me.CURRENT_BPE_STEP):
-                        line = code_file.readline()
-                    #first real line
-                    line = code_file.readline().strip().split()
-                    while line:
-                        idx, idy, w = me.merge_bpe(line[0], line[1], tgt_vocab)
-                        # add to vocab
-                        prev_vocab_size = tgt_vocab.vocab_size()
-                        widx = tgt_vocab.map2idx[w]
-                        if widx != prev_vocab_size:
-                            logger.error("! word already in vocab: {}".format(w))
-                        # add to embeddings
-                        me.update_embed(self.model.decoder.embed, idx, idy, operation="avg")
+            if self.bpe_incrementer and True:
+                train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents = \
+                    self.bpe_incrementer.load_next_bpe(self.model, src_vocab, tgt_vocab)
+                batches = make_batches(train_sents, self.batch_size)
+                dev_batches = make_batches(dev_sents_sorted, self.batch_size)
+                num_batches = len(batches)
 
-                        line = code_file.readline().strip().split()
-                        linenum += 1
-                # freeze target vocab 
-                tgt_vocab.freeze_vocab()
-                #--------
-                # todo: remap and rebatch sentences as necessary
-                # todo: add to optimizer
+                self.monitor.set_iters(num_batches)
 
         #-----------------------------
         self.monitor.finish_training()

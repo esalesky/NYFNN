@@ -46,6 +46,9 @@ class Vocab:
             self.idx2word.append(word)
         return self.word2idx[word]
 
+    def __contains__(self, item):
+        return item in self.word2idx
+
     def freeze_vocab(self):
         self.vocab_frozen = True
 

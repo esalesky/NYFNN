@@ -10,10 +10,10 @@ pair = "en-" + tgt_lang
 #--------------------------------------------------------
 fixed_seeds=True
 batch_size = 60
-max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
+max_sent_length = 10  #paper: 50 for baseline, 100 for morphgen
 max_gen_length  = 100 #100 for baseline, 200 for morphgen to be safe
 num_epochs = 30
-beam_size  = 5
+beam_size  = 1
 bi_enc = True
 cond_gru_dec = True
 embed_size = 500      #paper: 500
@@ -39,6 +39,20 @@ dev_src   = 'data/{}/{}/IWSLT16.TED.tst2012.{}.{}{}'.format(pair, src_dir, pair,
 dev_tgt   = 'data/{}/{}/IWSLT16.TED.tst2012.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
 tst_src   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, src_dir, pair, src_lang, src_suffix)
 tst_tgt   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, tgt_dir, pair, tgt_lang, tgt_suffix)
+
+#--------------------------------------------------------
+# incremental bpe settings (overwritten if debug arg passed to main)
+#--------------------------------------------------------
+use_incremental_bpe = True
+
+inc_bpe_dir = 'data/{}/inc'.format(pair)
+init_splits = 5000
+max_splits = 15000
+bpe_inc = 5000
+#example bpe set
+
+CURRENT_BPE_STEP = 0
+BPE_INC = 5000
 
 #--------------------------------------------------------
 # output settings

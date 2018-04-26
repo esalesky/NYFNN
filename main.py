@@ -13,6 +13,7 @@ from utils import use_cuda
 from training import MTTrainer
 from train_monitor import TrainMonitor
 
+from inc_bpe import BPEIncrementer
 
 def main(args):
     params = __import__(args.config.replace('.py',''))
@@ -35,33 +36,43 @@ def main(args):
             torch.cuda.manual_seed(69)
         random.seed(69)
     
-    max_num_sents = int(args.maxnumsents)
+    params.max_num_sents = int(args.maxnumsents)
 
     # Read in or create vocabs
     if args.srcvocab is not None and args.tgtvocab is not None:
         src_vocab = pickle.load(open(args.srcvocab, 'rb'))
         tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
-    else:
-        src_vocab, tgt_vocab = create_vocab(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length, max_vocab_size=50000)
+    elif not params.use_incremental_bpe:
+        src_vocab, tgt_vocab = create_vocab(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
+                                            params.max_num_sents, params.max_sent_length, max_vocab_size=50000)
         
-        src_vocab.save(params.MODEL_PATH + "src-vocab_" + params.pair + "_maxnum" + str(max_num_sents) +
+        src_vocab.save(params.MODEL_PATH + "src-vocab_" + params.pair + "_maxnum" + str(params.max_num_sents) +
                        "_maxlen" + str(params.max_sent_length) + ".pkl")
-        tgt_vocab.save(params.MODEL_PATH + "tgt-vocab_" + params.pair + "_maxnum" + str(max_num_sents) +
+        tgt_vocab.save(params.MODEL_PATH + "tgt-vocab_" + params.pair + "_maxnum" + str(params.max_num_sents) +
                        "_maxlen" + str(params.max_sent_length) + ".pkl")
+
+    bpe_incrementer = None
+    if params.use_incremental_bpe:
+        bpe_incrementer = BPEIncrementer(params)
+        src_vocab, tgt_vocab, train_sents, dev_sents_unsorted, dev_sents_sorted, tst_sents = bpe_incrementer.load_init()
+    else:
+        # Read in data
+        train_sents = input_reader(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
+                                   params.max_num_sents, params.max_sent_length, src_vocab, tgt_vocab, sort=True)
+        dev_sents_unsorted = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang,
+                                          params.max_num_sents, params.max_sent_length,
+                                          src_vocab, tgt_vocab, filt=False)
+        dev_sents_sorted   = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang,
+                                          params.max_num_sents, params.max_sent_length,
+                                          src_vocab, tgt_vocab, sort=True, filt=False)
+        tst_sents          = input_reader(params.tst_src, params.tst_tgt, params.src_lang, params.tgt_lang,
+                                          params.max_num_sents, params.max_sent_length,
+                                          src_vocab, tgt_vocab, filt=False)
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()
     logger.info("src vocab size: {}".format(input_size))
     logger.info("tgt vocab size: {}".format(output_size))
-
-    # Read in data
-    train_sents = input_reader(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length, src_vocab, tgt_vocab, sort=True)
-    dev_sents_unsorted = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length,
-                                      src_vocab, tgt_vocab, filt=False)
-    dev_sents_sorted   = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length,
-                                      src_vocab, tgt_vocab, sort=True, filt=False)
-    tst_sents          = input_reader(params.tst_src, params.tst_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length,
-                                      src_vocab, tgt_vocab, filt=False)
 
     # Initialize our model
     if args.model is not None:
@@ -90,7 +101,7 @@ def main(args):
                            output_path=params.OUTPUT_PATH, model_path=params.MODEL_PATH)
 
     trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=params.batch_size,
-                        beam_size=params.beam_size, learning_rate=0.0001)
+                        bpe_incrementer=bpe_incrementer, beam_size=params.beam_size, learning_rate=0.0001)
 
     trainer.train(train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab, params.num_epochs,
                   max_gen_length=params.max_gen_length, debug=args.debug, output_path=params.OUTPUT_PATH)

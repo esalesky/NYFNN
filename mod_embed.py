@@ -3,19 +3,14 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 import torch.nn as nn
-
-
-#example bpe set
-CODE_SET = ["50","100","150"]
-CODE_SET = ["data/examples/inc/cs_inc.{}.codes".format(x) for x in CODE_SET]
-CURRENT_BPE_STEP = 0
-BPE_INC = 50
+import params
 
 #adds a new embedding based on the embeddings at vocab indices idx and idy
 def update_embed(embed, idx, idy, operation="avg"):
     #add one to num embeddings
     embed.num_embeddings += 1
     #new embedding created from the two at indices idx and idy
+    print(idx, idy)
     if operation == "avg":
         new_embedding = torch.div(torch.add(embed.weight[idx], embed.weight[idy]), 2).view(1,-1)
     elif operation == "max":
@@ -40,4 +35,21 @@ def merge_bpe(first, second, vocab):
         right  = second+"@@" #b@@
         merged = first+right #ab@@
 
-    return vocab.map2idx[left], vocab.map2idx[right], merged
+    return vocab.map2idx(left), vocab.map2idx(right), merged
+
+def get_bpe_splits(word, vocab):
+    no_eow = word.replace('</w>', '')
+    for i in range(1, len(no_eow)):
+        left = word[:i] + '@@'
+        right = no_eow[i:]
+        right = right + ('@@' if not word.endswith('</w>') else '')
+        if left in vocab and right in vocab:
+            print(left, right)
+
+def get_bpe_forms(first, second):
+    left = first+"@@"
+    if second.endswith("</w>"):
+        right  = second.replace('</w>','')
+    else:
+        right = second+"@@"
+    return left, right
