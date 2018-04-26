@@ -8,16 +8,16 @@ logger = logging.getLogger(__name__)
 class BPEIncrementer:
 
     def __init__(self, params):
-        bpe_set = [str(i) for i in range(params.init_splits, params.max_splits + 1, params.bpe_inc)]
-        self.code_sets = ['data/{}/inc/bped_base_{}/cs_codes.{}'.format(params.pair, x, x) for x in bpe_set]
-        self.tgt_train_sets = ['data/{}/inc/bped_base_{}/train.tags.{}.{}.tok.bpe'
-                                   .format(params.pair, x, params.pair, params.tgt_lang) for x in bpe_set]
-        self.tgt_dev_sets = ['data/{}/inc/bped_base_{}/IWSLT16.TED.tst2012.{}.{}.tok.bpe'
-                                 .format(params.pair, x, params.pair, params.tgt_lang) for x in bpe_set]
-        self.tgt_tst_sets = ['data/{}/inc/bped_base_{}/IWSLT16.TED.tst2013.{}.{}.tok.bpe'
-                                 .format(params.pair, x, params.pair, params.tgt_lang) for x in bpe_set]
+        bpe_set = ["5k","10k","15k"]
+        self.code_sets = ['{}/{}/cs_codes.{}'.format(params.inc_bpe_dir, x, x) for x in bpe_set]
+        self.tgt_train_sets = ['{}/{}/train.tags.{}.{}.tok.bpe'
+                                   .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in bpe_set]
+        self.tgt_dev_sets = ['{}/{}/IWSLT16.TED.tst2012.{}.{}.tok.bpe'
+                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in bpe_set]
+        self.tgt_tst_sets = ['{}/{}/IWSLT16.TED.tst2013.{}.{}.tok.bpe'
+                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in bpe_set]
         self.bpe_step = 0
-        self.bpe_inc = params.bpe_inc
+        self.bpe_inc  = 5000
         self.src_lang = params.src_lang
         self.tgt_lang = params.tgt_lang
         self.train_src = params.train_src
@@ -26,12 +26,6 @@ class BPEIncrementer:
         self.max_num_sents = params.max_num_sents
         self.max_sent_length = params.max_sent_length
 
-    """Load the initial BPE splits"""
-    def load_init(self):
-        src_vocab, tgt_vocab = create_vocab(self.train_src, self.tgt_train_sets[0], self.src_lang, self.tgt_lang,
-                                            self.max_num_sents, self.max_sent_length, max_vocab_size=50000)
-        train_sents, dev_sents, dev_sents_sorted, tst_sents = self._load_sentences(src_vocab, tgt_vocab)
-        return src_vocab, tgt_vocab, train_sents, dev_sents, dev_sents_sorted, tst_sents
 
     def _load_sentences(self, src_vocab, tgt_vocab):
         train_sents = input_reader(self.train_src, self.tgt_train_sets[self.bpe_step], self.src_lang, self.tgt_lang,
@@ -39,8 +33,7 @@ class BPEIncrementer:
         dev_sents_unsorted = input_reader(self.dev_src, self.tgt_dev_sets[self.bpe_step], self.src_lang, self.tgt_lang,
                                           self.max_num_sents, self.max_sent_length, src_vocab, tgt_vocab, filt=False)
         dev_sents_sorted = input_reader(self.dev_src, self.tgt_dev_sets[self.bpe_step], self.src_lang, self.tgt_lang,
-                                        self.max_num_sents,
-                                        self.max_sent_length, src_vocab, tgt_vocab, sort=True, filt=False)
+                                        self.max_num_sents, self.max_sent_length, src_vocab, tgt_vocab, sort=True, filt=False)
         tst_sents = input_reader(self.tst_src, self.tgt_tst_sets[self.bpe_step], self.src_lang, self.tgt_lang, self.max_num_sents,
                                  self.max_sent_length, src_vocab, tgt_vocab, filt=False)
 
@@ -71,6 +64,7 @@ class BPEIncrementer:
             # first real line
             line = code_file.readline().strip().split()
             while line:
+                # add line codes to vocab and embeddings
                 # print(line[0], line[1])
                 self.update_embeddings(line[0], line[1], tgt_vocab, model.decoder.embed, past_codes)
                 line = code_file.readline().strip().split()

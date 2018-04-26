@@ -42,7 +42,7 @@ def main(args):
     if args.srcvocab is not None and args.tgtvocab is not None:
         src_vocab = pickle.load(open(args.srcvocab, 'rb'))
         tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
-    elif not params.use_incremental_bpe:
+    else:
         src_vocab, tgt_vocab = create_vocab(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
                                             params.max_num_sents, params.max_sent_length, max_vocab_size=50000)
         
@@ -54,20 +54,19 @@ def main(args):
     bpe_incrementer = None
     if params.use_incremental_bpe:
         bpe_incrementer = BPEIncrementer(params)
-        src_vocab, tgt_vocab, train_sents, dev_sents_unsorted, dev_sents_sorted, tst_sents = bpe_incrementer.load_init()
-    else:
-        # Read in data
-        train_sents = input_reader(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
-                                   params.max_num_sents, params.max_sent_length, src_vocab, tgt_vocab, sort=True)
-        dev_sents_unsorted = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang,
-                                          params.max_num_sents, params.max_sent_length,
-                                          src_vocab, tgt_vocab, filt=False)
-        dev_sents_sorted   = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang,
-                                          params.max_num_sents, params.max_sent_length,
-                                          src_vocab, tgt_vocab, sort=True, filt=False)
-        tst_sents          = input_reader(params.tst_src, params.tst_tgt, params.src_lang, params.tgt_lang,
-                                          params.max_num_sents, params.max_sent_length,
-                                          src_vocab, tgt_vocab, filt=False)
+
+    # Read in data
+    train_sents = input_reader(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
+                               params.max_num_sents, params.max_sent_length, src_vocab, tgt_vocab, sort=True)
+    dev_sents_unsorted = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang,
+                                      params.max_num_sents, params.max_sent_length,
+                                      src_vocab, tgt_vocab, filt=False)
+    dev_sents_sorted   = input_reader(params.dev_src, params.dev_tgt, params.src_lang, params.tgt_lang,
+                                      params.max_num_sents, params.max_sent_length,
+                                      src_vocab, tgt_vocab, sort=True, filt=False)
+    tst_sents          = input_reader(params.tst_src, params.tst_tgt, params.src_lang, params.tgt_lang,
+                                      params.max_num_sents, params.max_sent_length,
+                                      src_vocab, tgt_vocab, filt=False)
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()
