@@ -10,7 +10,7 @@ pair = "en-" + tgt_lang
 #--------------------------------------------------------
 fixed_seeds=True
 batch_size = 60
-max_sent_length = 10  #paper: 50 for baseline, 100 for morphgen
+max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
 max_gen_length  = 100 #100 for baseline, 200 for morphgen to be safe
 num_epochs = 30
 beam_size  = 1

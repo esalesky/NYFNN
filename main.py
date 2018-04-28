@@ -53,7 +53,7 @@ def main(args):
 
     bpe_incrementer = None
     if params.use_incremental_bpe:
-        bpe_incrementer = BPEIncrementer(params)
+        bpe_incrementer = BPEIncrementer(params, tgt_vocab)
 
     # Read in data
     train_sents = input_reader(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
