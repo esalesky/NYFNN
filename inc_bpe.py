@@ -61,8 +61,9 @@ class BPEIncrementer:
         self.bpe_step += 1
         logger.info("Moving to next bpe increment: {}".format(self.bpe_step))
         # Save the original embeddings before we modify them in any way
+        original_layers = {'embed': model.decoder.embed.weight,
+                           'out': model.decode.out.weight}
         original_embedding = model.decoder.embed.weight
-        n_updates = 0  # Keep track of the number of updates made to the embeddings
         # unfreeze target vocab
         tgt_vocab.thaw_vocab()
         # get new vocab words
@@ -101,10 +102,9 @@ class BPEIncrementer:
                     logger.error("Word is not already present in vocab :(")
                     raise Exception
                 self.update_pair_embedding(line[0], line[1], tgt_vocab, model.decoder.embed, model.decoder.out)
-                n_updates += 1
                 line = code_file.readline().strip().split()
             print(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0])
-        self.update_optimizer(optimizer, model, original_embedding, n_updates)
+        self.update_optimizer(optimizer, model, original_layers)
         # freeze target vocab
         tgt_vocab.freeze_vocab()
 
@@ -126,7 +126,7 @@ class BPEIncrementer:
             raise Exception
         # print(embedding.weight[idx], embedding.weight[idy], embedding.weight[widx])
 
-    def update_optimizer(self, optimizer, model, original_embedding, n_updates, fill_val=0.0):
+    def update_optimizer(self, optimizer, model, original_layers, fill_val=0.0):
         """Update the optimizer with new embeddings."""
         # Re-initialize all the param groups with the new model params
         # We just do this over all params for certainty
@@ -139,27 +139,37 @@ class BPEIncrementer:
         for param_group in param_groups:
             optimizer.add_param_group(param_group)
 
-        # Get the shape difference for padding new tensors
-        new_embedding = model.decoder.embed.weight
-        original_shape = original_embedding.shape
-        new_shape = model.decoder.embed.weight.shape
-        pad_shape = torch.Size([new_shape[0] - original_shape[0], new_shape[1]])
+        # Get the new versions of layers that changed sized
+        # Note: the keys of this dict must match that of original_layers
+        new_layers = {'embed': model.decoder.embed.weight,
+                      'out': model.decoder.out.weight}
 
-        # Modify the state tensors to the new size
-        original_state = optimizer.state[original_embedding]
-        new_state_pad = torch.zeros(pad_shape)
-        if use_cuda:
-            new_state_pad = new_state_pad.cuda()
+        # Update all the layers' states in the optimizer
+        for k in original_layers.keys():
+            # Get the old/new versions of the layer we are changing 
+            original_layer = original_layers[k]
+            new_layer = new_layers[k]
 
-        new_exp_avg = torch.cat((original_state['exp_avg'], new_state_pad), 0)
-        new_exp_avg_sq = torch.cat((original_state['exp_avg_sq'], new_state_pad), 0)
-        new_step = original_state['step']
-        new_state = {'step': new_step, 'exp_avg': new_exp_avg, 'exp_avg_sq': new_exp_avg_sq}
+            # Get the shape difference for padding new tensors
+            original_shape = original_layer.shape
+            new_shape = new_layer.shape
+            pad_shape = torch.Size([new_shape[0] - original_shape[0], new_shape[1]])
 
-        # Actually modify the state
-        optimizer.state[new_embedding] = new_state
-        print(optimizer.state[new_embedding])
-        del(optimizer.state[original_embedding])
+            # Set up the padding tensor to make the original states into the right size
+            new_state_pad = torch.zeros(pad_shape)
+            if use_cuda:
+                new_state_pad = new_state_pad.cuda()
+
+            # Modify the state tensors to be the correct new size
+            original_state = optimizer.state[original_layer]
+            new_exp_avg = torch.cat((original_state['exp_avg'], new_state_pad), 0)
+            new_exp_avg_sq = torch.cat((original_state['exp_avg_sq'], new_state_pad), 0)
+            new_step = original_state['step']
+            new_state = {'step': new_step, 'exp_avg': new_exp_avg, 'exp_avg_sq': new_exp_avg_sq}
+
+            # Actually modify the state
+            optimizer.state[new_layer] = new_state
+            del(optimizer.state[original_layer])
 
     def _merge_bpe(self, first, second, vocab):
         left = first+"@@"   #a@@
