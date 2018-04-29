@@ -120,26 +120,26 @@ class MTTrainer:
                     avg_loss, total_loss = self.generate(dev_sents_unsorted, src_vocab, tgt_vocab,
                                                          max_gen_length, dev_output_file, output_path)
                     self.monitor.finish_iter('dev-cp', avg_loss)
+                if ep == 0:
+                    break
 
             # end of epoch
             # generate output
             logger.info("Calculating dev loss + writing output")
             dev_output_file = "dev_output_e{0}.txt".format(ep)
-            avg_loss, total_loss = self.calc_dev_loss(dev_batches)
+            avg_dev_loss, total_dev_loss = self.calc_dev_loss(dev_batches)
             self.generate(dev_sents_unsorted, src_vocab, tgt_vocab, max_gen_length, dev_output_file, output_path)
-            done_training = self.monitor.finish_epoch(ep, 'dev', avg_loss, total_loss)
+            done_training = self.monitor.finish_epoch(ep, 'dev', avg_dev_loss, total_dev_loss)
             if done_training:
                 logger.info("Stopping early: dev loss has not gone down in patience period.")
                 break
 
-            # todo: evaluate bleu
-
             tst_output_file = "tst_output_e{0}.txt".format(ep)
-            avg_loss, total_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
-            self.monitor.finish_epoch(ep, 'test', avg_loss, total_loss)
+            avg_tst_loss, total_tst_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
+            self.monitor.finish_epoch(ep, 'test', avg_tst_loss, total_tst_loss)
 
             # todo: check threshold for incremental bpe
-            if self.bpe_incrementer and True:
+            if self.bpe_incrementer and self.bpe_incrementer.test_increment(avg_dev_loss):
                 self.bpe_incrementer.update_bpe_vocab(self.model, self.optimizer, tgt_vocab)
                 train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents = self.bpe_incrementer\
                     .load_next_bpe(src_vocab, tgt_vocab)

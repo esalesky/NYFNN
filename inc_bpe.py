@@ -28,7 +28,29 @@ class BPEIncrementer:
         self.tst_src = params.tst_src
         self.max_num_sents = params.max_num_sents
         self.max_sent_length = params.max_sent_length
+        self.patience = params.bpe_patience
+        self.elapsed_patience = 0
+        self.burn_in = params.burn_in_iters
+        self.threshold = params.dev_loss_threshold
+        self.lowest_loss = float('inf')
+        self.current_burn_in = self.burn_in
         self._load_init(vocab)
+
+    def test_increment(self, loss):
+        self.current_burn_in -= 1
+        if loss < self.lowest_loss - self.threshold:
+            self.elapsed_patience = 0
+            self.lowest_loss = loss
+            return False
+        elif self.current_burn_in >= 0:
+            return False
+        else:
+            self.elapsed_patience += 1
+            logger.info("BPE incrementing patience at ({}/{})".format(self.elapsed_patience, self.patience))
+            if self.elapsed_patience == self.patience:
+                return True
+            else:
+                return False
 
     """Load the initial set of bpe splits into the vocab to ensure that all subwords are present for future
        combination."""
@@ -44,6 +66,7 @@ class BPEIncrementer:
 
     """Load the next set of bpe'd sentences. This method should be called after update_bpe_vocab"""
     def load_next_bpe(self, src_vocab, tgt_vocab):
+        logger.info("Loading BPE set with {} codes".format(self.tgt_train_sets[self.bpe_step]))
         train_sents = input_reader(self.train_src, self.tgt_train_sets[self.bpe_step], self.src_lang, self.tgt_lang,
                                    self.max_num_sents, self.max_sent_length, src_vocab, tgt_vocab, sort=True)
         dev_sents_unsorted = input_reader(self.dev_src, self.tgt_dev_sets[self.bpe_step], self.src_lang, self.tgt_lang,
@@ -52,6 +75,9 @@ class BPEIncrementer:
                                         self.max_num_sents, self.max_sent_length, src_vocab, tgt_vocab, sort=True, filt=False)
         tst_sents = input_reader(self.tst_src, self.tgt_tst_sets[self.bpe_step], self.src_lang, self.tgt_lang, self.max_num_sents,
                                  self.max_sent_length, src_vocab, tgt_vocab, filt=False)
+        # todo: Should we reset the lowest loss as well?
+        self.current_burn_in = self.burn_in
+        self.elapsed_patience = 0
 
         return train_sents, dev_sents_unsorted, dev_sents_sorted, tst_sents
 
@@ -62,7 +88,8 @@ class BPEIncrementer:
         logger.info("Moving to next bpe increment: {}".format(self.bpe_step))
         # Save the original embeddings before we modify them in any way
         original_layers = {'embed': model.decoder.embed.weight,
-                           'out': model.decode.out.weight}
+                           'out': model.decoder.out.weight,
+                           'out-bias': model.decoder.out.bias}
         original_embedding = model.decoder.embed.weight
         # unfreeze target vocab
         tgt_vocab.thaw_vocab()
@@ -142,7 +169,8 @@ class BPEIncrementer:
         # Get the new versions of layers that changed sized
         # Note: the keys of this dict must match that of original_layers
         new_layers = {'embed': model.decoder.embed.weight,
-                      'out': model.decoder.out.weight}
+                      'out': model.decoder.out.weight,
+                      'out-bias': model.decoder.out.bias}
 
         # Update all the layers' states in the optimizer
         for k in original_layers.keys():
@@ -153,7 +181,10 @@ class BPEIncrementer:
             # Get the shape difference for padding new tensors
             original_shape = original_layer.shape
             new_shape = new_layer.shape
-            pad_shape = torch.Size([new_shape[0] - original_shape[0], new_shape[1]])
+            if len(new_shape) == 2:
+                pad_shape = torch.Size([new_shape[0] - original_shape[0], new_shape[1]])
+            else:
+                pad_shape = torch.Size([new_shape[0] - original_shape[0]])
 
             # Set up the padding tensor to make the original states into the right size
             new_state_pad = torch.zeros(pad_shape)

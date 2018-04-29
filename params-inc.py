@@ -13,7 +13,7 @@ batch_size = 60
 max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
 max_gen_length  = 100 #100 for baseline, 200 for morphgen to be safe
 num_epochs = 30
-beam_size  = 1
+beam_size  = 5
 bi_enc = True
 cond_gru_dec = True
 embed_size = 500      #paper: 500
@@ -28,6 +28,9 @@ if bi_enc:
 #--------------------------------------------------------
 use_incremental_bpe = True
 inc_bpe_dir = 'data/{}/bpe_tune'.format(pair)
+burn_in_iters = 3 # Iterations to run before evaluating the loss threshold
+dev_loss_threshold = 0.05 # Load new bpe splits if dev loss fails to decrease by this threshold for a number of epochs
+bpe_patience = 2 # Number of iterations to allow dev loss to decrease less than the threshold
 
 #--------------------------------------------------------
 # data settings (overwritten if debug arg passed to main)
