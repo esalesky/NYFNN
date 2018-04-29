@@ -11,6 +11,7 @@ from torch.autograd import Variable
 
 use_cuda = torch.cuda.is_available()
 
+
 def pair2var(sent_pair, volatile=False):
     src_variable = Variable(torch.LongTensor(sent_pair[0]), volatile=volatile)
     tgt_variable = Variable(torch.LongTensor(sent_pair[1]), volatile=volatile)

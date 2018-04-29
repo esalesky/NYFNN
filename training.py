@@ -11,7 +11,6 @@ from torch.optim import lr_scheduler
 from utils import time_elapsed, save_plot, use_cuda, pair2var, perplexity
 from preprocessing import SOS, SOS_TOKEN, EOS, EOS_TOKEN
 from batching import make_batches
-import mod_embed as me
 
 import logging
 from plot_attention import plot_attention
@@ -124,23 +123,28 @@ class MTTrainer:
             # end of epoch
             # generate output
             logger.info("Calculating dev loss + writing output")
-            dev_output_file = "dev_output_e{0}.txt".format(ep)
+            if self.bpe_incrementer:
+                dev_output_file = "dev_output_e{}_bpe{}.txt".format(ep, self.bpe_incrementer.current_bpe())
+            else:
+                dev_output_file = "dev_output_e{}.txt".format(ep)
             avg_dev_loss, total_dev_loss = self.calc_dev_loss(dev_batches)
             self.generate(dev_sents_unsorted, src_vocab, tgt_vocab, max_gen_length, dev_output_file, output_path)
             done_training = self.monitor.finish_epoch(ep, 'dev', avg_dev_loss, total_dev_loss)
             if done_training:
                 logger.info("Stopping early: dev loss has not gone down in patience period.")
                 break
-
-            tst_output_file = "tst_output_e{0}.txt".format(ep)
+            if self.bpe_incrementer:
+                tst_output_file = "tst_output_e{}_bpe{}.txt".format(ep, self.bpe_incrementer.current_bpe())
+            else:
+                tst_output_file = "tst_output_e{}.txt".format(ep)
             avg_tst_loss, total_tst_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
             self.monitor.finish_epoch(ep, 'test', avg_tst_loss, total_tst_loss)
 
             # todo: check threshold for incremental bpe
-            if self.bpe_incrementer and self.bpe_incrementer.test_increment(avg_dev_loss):
+            if self.bpe_incrementer and True: #self.bpe_incrementer.test_increment(avg_dev_loss):
                 next_loaded = self.bpe_incrementer.update_bpe_vocab(self.model, self.optimizer, tgt_vocab)
                 if not next_loaded:
-                   break
+                    break
                 train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents = self.bpe_incrementer\
                     .load_next_bpe(src_vocab, tgt_vocab)
                 batches = make_batches(train_sents, self.batch_size)

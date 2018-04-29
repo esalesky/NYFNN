@@ -2,7 +2,7 @@ from preprocessing import input_reader, create_vocab
 import logging
 import torch
 import pdb
-import mod_embed as me
+import embed_merge as em
 from utils import use_cuda
 from torch.nn.parameter import Parameter
 
@@ -11,14 +11,14 @@ logger = logging.getLogger(__name__)
 class BPEIncrementer:
 
     def __init__(self, params, vocab):
-        bpe_set = ["5k","10k","15k", "20k", "25k", "30k", "35k", "40k", "45k"]
-        self.code_sets = ['{}/{}/cs_codes.{}'.format(params.inc_bpe_dir, x, x) for x in bpe_set]
+        self.bpe_set = ["5k","10k","15k", "20k", "25k", "30k", "35k", "40k", "45k", "50k"]
+        self.code_sets = ['{}/{}/cs_codes.{}'.format(params.inc_bpe_dir, x, x) for x in self.bpe_set]
         self.tgt_train_sets = ['{}/{}/train.tags.{}.{}.tok.bpe'
-                                   .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in bpe_set]
+                                   .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
         self.tgt_dev_sets = ['{}/{}/IWSLT16.TED.tst2012.{}.{}.tok.bpe'
-                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in bpe_set]
+                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
         self.tgt_tst_sets = ['{}/{}/IWSLT16.TED.tst2013.{}.{}.tok.bpe'
-                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in bpe_set]
+                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
         self.bpe_step = 0
         self.bpe_inc  = 5000
         self.src_lang = params.src_lang
@@ -35,6 +35,10 @@ class BPEIncrementer:
         self.lowest_loss = float('inf')
         self.current_burn_in = self.burn_in
         self._load_init(vocab)
+        self.embed_merger = em.get_merger(params.embed_merge, embed_size=params.embed_size)
+
+    def current_bpe(self):
+        return self.bpe_set[self.bpe_step]
 
     def test_increment(self, loss):
         self.current_burn_in -= 1
@@ -84,44 +88,27 @@ class BPEIncrementer:
 
     def update_bpe_vocab(self, model, optimizer, tgt_vocab):
         # add one to current_bpe_step
-        print(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0])
+        logger.info("Vocab size: {}, Embeding size: {}, Output size: {}"
+            .format(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0], model.decoder.out.weight.shape[0]))
         self.bpe_step += 1
         if self.bpe_step >= len(self.tgt_train_sets):
             logger.info("No more bpe steps to load, ending training.")
             return False
         logger.info("Moving to next bpe increment: {}".format(self.bpe_step))
         # Save the original embeddings before we modify them in any way
-        original_layers = {'embed': model.decoder.embed.weight,
-                           'out': model.decoder.out.weight,
-                           'out-bias': model.decoder.out.bias}
-        original_embedding = model.decoder.embed.weight
+        original_layers = self.get_layers_to_change(model, weights=True)
         # unfreeze target vocab
         tgt_vocab.thaw_vocab()
         # get new vocab words
+        embedding_pairs = []
         with open(self.code_sets[self.bpe_step], 'r') as code_file:
             code_file.readline().strip()  # version header
-            # Retrieve the set of previously BPE-merged subword to its component subwords
+            # Skip previously BPE-merged subword to its component subwords
             for _ in range(self.bpe_inc * self.bpe_step):
-                line = code_file.readline().strip().split()
-                left, right = self._get_bpe_forms(line[0], line[1])
-                # Expect that all subwords should already have been in the vocabulary
-                # todo: If they aren't, we'll need to add them separately
-                if left not in tgt_vocab:
-                    logger.error("Word is not already present in vocab :(")
-                    raise Exception
-                if right not in tgt_vocab:
-                    logger.error("Word is not already present in vocab :(")
-                    raise Exception
-                idx, idy, w = self._merge_bpe(line[0], line[1], tgt_vocab)
-                prev_vocab_size = tgt_vocab.vocab_size()
-                widx = tgt_vocab.map2idx(w)
-                if widx != prev_vocab_size:
-                    continue
-                # add to embeddings
-                me.update_embed(model.decoder.embed, idx, idy, operation="avg")
+                code_file.readline().strip().split()
             # first real line
-            line = code_file.readline().strip().split()
-            while line:
+            for line in code_file:
+                line = line.strip().split()
                 # add line codes to vocab and embeddings
                 left, right = self._get_bpe_forms(line[0], line[1])
                 # Expect that all subwords should already have been in the vocabulary
@@ -132,9 +119,25 @@ class BPEIncrementer:
                 if right not in tgt_vocab:
                     logger.error("Word is not already present in vocab :(")
                     raise Exception
-                self.update_pair_embedding(line[0], line[1], tgt_vocab, model.decoder.embed, model.decoder.out)
-                line = code_file.readline().strip().split()
-            print(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0])
+                idx, idy, w = self._merge_bpe(line[0], line[1], tgt_vocab)
+                # add to vocab
+                prev_vocab_size = tgt_vocab.vocab_size()
+                widx = tgt_vocab.map2idx(w)
+                if widx != prev_vocab_size:
+                    logger.error("! word already in vocab: {}".format(w))
+                    raise Exception
+                embedding_pairs.append((idx, idy))
+                # self.update_pair_embedding(line[0], line[1], tgt_vocab, model.decoder.embed, model.decoder.out)
+        self.embed_merger.generate_embeddings(embedding_pairs, self.get_layers_to_change(model))
+
+        logger.info("Vocab size: {}, Embeding size: {}, Output size: {}"
+            .format(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0], model.decoder.out.weight.shape[0]))
+
+        if model.decoder.embed.weight.shape[0] != tgt_vocab.vocab_size() != model.decoder.out.weight.shape[0]:
+            logger.error("Embedding, vocab, and linear sizes do not match! Vocab size: {}, Embeding size: {}, Output size: {}"
+                         .format(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0], model.decoder.out.weight.shape[0]))
+            raise Exception
+
         self.update_optimizer(optimizer, model, original_layers)
         # freeze target vocab
         tgt_vocab.freeze_vocab()
@@ -173,9 +176,7 @@ class BPEIncrementer:
 
         # Get the new versions of layers that changed sized
         # Note: the keys of this dict must match that of original_layers
-        new_layers = {'embed': model.decoder.embed.weight,
-                      'out': model.decoder.out.weight,
-                      'out-bias': model.decoder.out.bias}
+        new_layers = self.get_layers_to_change(model, weights=True)
 
         # Update all the layers' states in the optimizer
         for k in original_layers.keys():
@@ -225,3 +226,12 @@ class BPEIncrementer:
         else:
             right = second+"@@"
         return left, right
+
+    def get_layers_to_change(self, model, weights=False):
+        if weights:
+            return {'embed': model.decoder.embed.weight,
+                    'out': model.decoder.out.weight,
+                    'out-bias': model.decoder.out.bias}
+        else:
+            return {'embed': model.decoder.embed,
+                    'out': model.decoder.out}
