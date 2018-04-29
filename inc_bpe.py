@@ -39,6 +39,7 @@ class BPEIncrementer:
     def test_increment(self, loss):
         self.current_burn_in -= 1
         if loss < self.lowest_loss - self.threshold:
+            logger.info("Loss {} is lower than best - threshold {}".format(loss, self.lowest_loss - self.threshold))
             self.elapsed_patience = 0
             self.lowest_loss = loss
             return False
@@ -85,6 +86,9 @@ class BPEIncrementer:
         # add one to current_bpe_step
         print(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0])
         self.bpe_step += 1
+        if self.bpe_step >= len(self.tgt_train_sets):
+            logger.info("No more bpe steps to load, ending training.")
+            return False
         logger.info("Moving to next bpe increment: {}".format(self.bpe_step))
         # Save the original embeddings before we modify them in any way
         original_layers = {'embed': model.decoder.embed.weight,
@@ -134,6 +138,7 @@ class BPEIncrementer:
         self.update_optimizer(optimizer, model, original_layers)
         # freeze target vocab
         tgt_vocab.freeze_vocab()
+        return True
 
     """Update the embedding layer with some combination of the embeddings of the provided two words."""
     def update_pair_embedding(self, w1, w2, vocab, embedding, output):
