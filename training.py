@@ -120,8 +120,6 @@ class MTTrainer:
                     avg_loss, total_loss = self.generate(dev_sents_unsorted, src_vocab, tgt_vocab,
                                                          max_gen_length, dev_output_file, output_path)
                     self.monitor.finish_iter('dev-cp', avg_loss)
-                if ep == 0:
-                    break
 
             # end of epoch
             # generate output
