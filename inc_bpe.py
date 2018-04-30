@@ -84,7 +84,7 @@ class BPEIncrementer:
         self.current_burn_in = self.burn_in
         self.elapsed_patience = 0
 
-        return train_sents, dev_sents_unsorted, dev_sents_sorted, tst_sents
+        return train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents
 
     def update_bpe_vocab(self, model, optimizer, tgt_vocab):
         # add one to current_bpe_step

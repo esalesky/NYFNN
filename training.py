@@ -141,7 +141,7 @@ class MTTrainer:
             self.monitor.finish_epoch(ep, 'test', avg_tst_loss, total_tst_loss)
 
             # todo: check threshold for incremental bpe
-            if self.bpe_incrementer and True: #self.bpe_incrementer.test_increment(avg_dev_loss):
+            if self.bpe_incrementer and self.bpe_incrementer.test_increment(avg_dev_loss):
                 next_loaded = self.bpe_incrementer.update_bpe_vocab(self.model, self.optimizer, tgt_vocab)
                 if not next_loaded:
                     break
