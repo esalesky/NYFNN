@@ -20,7 +20,7 @@ class BPEIncrementer:
         self.tgt_tst_sets = ['{}/{}/IWSLT16.TED.tst2013.{}.{}.tok.bpe'
                                  .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
         self.bpe_step = 0
-        self.bpe_inc  = 5000
+        self.bpe_inc  = 10000
         self.src_lang = params.src_lang
         self.tgt_lang = params.tgt_lang
         self.train_src = params.train_src
