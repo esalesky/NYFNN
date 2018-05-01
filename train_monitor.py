@@ -121,9 +121,9 @@ class PlotCallback(TrainCallback):
                     plot_perplexity_avg = perplexity(plot_loss_avg)
                     self.plot_perplexities.append(plot_perplexity_avg)
             if self.iters % self.save_every == 0:
-                save_plot(self.plot_losses, self.loss_file, self.plot_scale)
+                save_plot(self.plot_losses, self.loss_file, self.plot_scale, 'Iterations')
                 if self.plot_perplexities:
-                    save_plot(self.plot_perplexities, self.perplexity_file, self.plot_scale)
+                    save_plot(self.plot_perplexities, self.perplexity_file, self.plot_scale, 'Iterations')
 
     def finish_epoch(self, epoch, loss_type, avg_loss, total_loss):
         # Note that we explicitly don't reset self.iters here, because it would mess up how often we plot
@@ -136,7 +136,10 @@ class PlotCallback(TrainCallback):
             save_plot(self.plot_losses, self.loss_file, 1, 'Epochs')
         if self.perplexity_file:
             self.plot_perplexities.append(perplexity(avg_loss))
-            save_plot(self.plot_perplexities, self.perplexity_file, 1)
+            if self.plot_every > 0:
+                save_plot(self.plot_perplexities, self.perplexity_file, 1, 'Iterations')
+            else:
+                save_plot(self.plot_perplexities, self.perplexity_file, 1, 'Epochs')
         return "continue"
 
     def finish_training(self):
