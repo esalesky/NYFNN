@@ -37,17 +37,18 @@ def time_elapsed(start, percent):  #todo: make this realistic plz
     return '%s (est. remaining in epoch: %s)' % (format_time(s), format_time(rs))
 
 
-def save_plot(points, name, freq):
+def save_plot(points, name, freq, axis_label):
     #plt.figure()
+    plot_name = name.title().split('/')[-1]
     fig, ax = plt.subplots()
     # puts ticks at regular intervals
     # loc = ticker.MultipleLocator(base=10.0)
     # ax.yaxis.set_major_locator(loc)
     x_vals = np.arange(0, freq*len(points), freq)
     plt.plot(x_vals, points)
-    plt.xlabel('Iteration')
-    plt.ylabel(name.title())
-    plt.title(name.title())
+    plt.xlabel(axis_label)
+    plt.ylabel(plot_name)
+    plt.title(plot_name)
     plt.savefig('{}.jpg'.format(name))
     plt.close(fig)
 

@@ -130,7 +130,10 @@ class PlotCallback(TrainCallback):
         if self.loss_type != loss_type:
             return
         self.plot_losses.append(avg_loss)
-        save_plot(self.plot_losses, self.loss_file, 1)
+        if self.plot_every > 0:
+            save_plot(self.plot_losses, self.loss_file, 1, 'Iterations')
+        else:
+            save_plot(self.plot_losses, self.loss_file, 1, 'Epochs')
         if self.perplexity_file:
             self.plot_perplexities.append(perplexity(avg_loss))
             save_plot(self.plot_perplexities, self.perplexity_file, 1)

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class BPEIncrementer:
 
     def __init__(self, params, vocab):
-        self.bpe_set = ["5k","10k","15k", "20k", "25k", "30k", "35k", "40k", "45k", "50k"]
+        self.bpe_set = ["10k", "20k", "30k", "40k", "50k", "60k"]
         self.code_sets = ['{}/{}/cs_codes.{}'.format(params.inc_bpe_dir, x, x) for x in self.bpe_set]
         self.tgt_train_sets = ['{}/{}/train.tags.{}.{}.tok.bpe'
                                    .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
@@ -83,7 +83,7 @@ class BPEIncrementer:
         # todo: Should we reset the lowest loss as well?
         self.current_burn_in = self.burn_in
         self.elapsed_patience = 0
-
+        self.lowest_loss = float('inf')
         return train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents
 
     def update_bpe_vocab(self, model, optimizer, tgt_vocab):
