@@ -15,6 +15,7 @@ from train_monitor import TrainMonitor
 
 
 def main(args):
+    print(args.config)
     params = __import__(args.config.replace('.py',''))
 
     logging.config.fileConfig('config/logging.conf', disable_existing_loggers=False, defaults={'filename': '{}/training.log'.format(params.OUTPUT_PATH)})
@@ -38,16 +39,17 @@ def main(args):
     max_num_sents = int(args.maxnumsents)
 
     # Read in or create vocabs
-    if args.srcvocab is not None and args.tgtvocab is not None:
+    if args.srcvocab is not None:
         src_vocab = pickle.load(open(args.srcvocab, 'rb'))
+    else:
+        src_vocab = create_vocab(params.train_src, params.src_lang, max_num_sents, params.max_sent_length, max_vocab_size=100000)        
+        src_vocab.save(params.src_vocab + ".pkl")
+
+    if args.tgtvocab is not None:
         tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
     else:
-        src_vocab, tgt_vocab = create_vocab(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang, max_num_sents, params.max_sent_length, max_vocab_size=50000)
-        
-        src_vocab.save(params.MODEL_PATH + "src-vocab_" + params.pair + "_maxnum" + str(max_num_sents) +
-                       "_maxlen" + str(params.max_sent_length) + ".pkl")
-        tgt_vocab.save(params.MODEL_PATH + "tgt-vocab_" + params.pair + "_maxnum" + str(max_num_sents) +
-                       "_maxlen" + str(params.max_sent_length) + ".pkl")
+        tgt_vocab = create_vocab(params.train_tgt, params.tgt_lang, max_num_sents, params.max_sent_length, max_vocab_size=100000)        
+        tgt_vocab.save(params.tgt_vocab + ".pkl")
 
     input_size  = src_vocab.vocab_size()
     output_size = tgt_vocab.vocab_size()

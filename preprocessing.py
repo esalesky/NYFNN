@@ -123,31 +123,23 @@ def read_corpus(source_file, target_file, src_lang, tgt_lang, max_num_sents, src
     return sents
 
 
-def create_vocab(source_file, target_file, src_lang, tgt_lang, max_num_sents,
+def create_vocab(source_file, src_lang,  max_num_sents,
                  max_sent_length=100, min_sent_length=2, max_vocab_size=50000):
 
-    src_freq = defaultdict(int)
-    tgt_freq = defaultdict(int)
-    
+    src_freq = defaultdict(int)    
     src_vocab = Vocab(src_lang)
-    tgt_vocab = Vocab(tgt_lang)
 
     logger.info("Creating vocabs.")
 
     sent_counter = 0
-    with open(source_file, encoding='utf-8') as src_sents, open(target_file, encoding='utf-8') as tgt_sents:
-        for src_sent, tgt_sent in zip(src_sents, tgt_sents):
+    with open(source_file, encoding='utf-8') as src_sents:
+        for src_sent in src_sents:
             src_sent = clean(src_sent)
-            tgt_sent = clean(tgt_sent)
-            if keep_pair((src_sent, tgt_sent), max_sent_length, min_sent_length):
+            if keep_sent(src_sent, max_sent_length, min_sent_length):
                 src_freq[SOS_TOKEN]+=1
                 src_freq[EOS_TOKEN]+=1
-                tgt_freq[SOS_TOKEN]+=1
-                tgt_freq[EOS_TOKEN]+=1
                 for w in src_sent:
                     src_freq[w]+=1
-                for w in tgt_sent:
-                    tgt_freq[w]+=1
 
                 sent_counter+=1
                 if sent_counter >= max_num_sents:
@@ -156,18 +148,13 @@ def create_vocab(source_file, target_file, src_lang, tgt_lang, max_num_sents,
     #---
     for v in sorted(src_freq, key=lambda x: src_freq[x], reverse=True)[:max_vocab_size]:
         src_vocab.map2idx(v)
-    for v in sorted(tgt_freq, key=lambda x: tgt_freq[x], reverse=True)[:max_vocab_size]:
-        tgt_vocab.map2idx(v)
 
     src_vocab.freeze_vocab()
     src_vocab.set_unk(UNK_TOKEN)
 
-    tgt_vocab.freeze_vocab()
-    tgt_vocab.set_unk(UNK_TOKEN)
+    logger.info("Vocab created.")
 
-    logger.info("Vocabs created.")
-
-    return src_vocab, tgt_vocab
+    return src_vocab
 
 
 def clean(line):
@@ -193,3 +180,6 @@ def input_reader(source_file, target_file, src, tgt, max_num_sents,
 #true if sent should not be filtered
 def keep_pair(p, max_sent_length, min_sent_length):
     return min_sent_length <= len(p[0]) <= max_sent_length and min_sent_length <= len(p[1]) <= max_sent_length
+
+def keep_sent(s, max_sent_length, min_sent_length):
+    return min_sent_length <= len(s) <= max_sent_length
