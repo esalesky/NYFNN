@@ -25,11 +25,11 @@ def optimizer_factory(optim_type, model, **kwargs):
 class MTTrainer:
 
     def __init__(self, model, train_monitor, optim_type='SGD', batch_size=64, beam_size=5, learning_rate=0.01,
-                 bpe_incrementer=None):
+                 bpe_incrementer=None, lr_step=10):
         self.model = model
         self.optimizer = optimizer_factory(optim_type, model, lr=learning_rate)
         # Decay learning rate by a factor of 0.5 (gamma) every 10 epochs (step_size)
-        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=lr_step, gamma=0.5)
         # Reduce flag makes this return a loss per patch, necessary for masking
         self.loss_fn = nn.NLLLoss(reduce=False)
         self.use_nllloss = True

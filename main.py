@@ -100,7 +100,7 @@ def main(args):
                            output_path=params.OUTPUT_PATH, model_path=params.MODEL_PATH)
 
     trainer = MTTrainer(model, monitor, optim_type='Adam', batch_size=params.batch_size,
-                        bpe_incrementer=bpe_incrementer, beam_size=params.beam_size, learning_rate=0.0001)
+                        bpe_incrementer=bpe_incrementer, beam_size=params.beam_size, learning_rate=0.0001, lr_step=params.patience)
 
     trainer.train(train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents, src_vocab, tgt_vocab, params.num_epochs,
                   max_gen_length=params.max_gen_length, debug=args.debug, output_path=params.OUTPUT_PATH)
