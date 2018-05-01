@@ -12,13 +12,10 @@ class BPEIncrementer:
 
     def __init__(self, params, vocab):
         self.bpe_set = ["10k", "20k", "30k", "40k", "50k", "60k"]
-        self.code_sets = ['{}/{}/cs_codes.{}'.format(params.inc_bpe_dir, x, x) for x in self.bpe_set]
-        self.tgt_train_sets = ['{}/{}/train.tags.{}.{}.tok.bpe'
-                                   .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
-        self.tgt_dev_sets = ['{}/{}/IWSLT16.TED.tst2012.{}.{}.tok.bpe'
-                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
-        self.tgt_tst_sets = ['{}/{}/IWSLT16.TED.tst2013.{}.{}.tok.bpe'
-                                 .format(params.inc_bpe_dir, x, params.pair, params.tgt_lang) for x in self.bpe_set]
+        self.code_sets = [params.code_paths.format(x, x) for x in self.bpe_set]
+        self.tgt_train_sets = [params.train_bpe_tgt.format(x) for x in self.bpe_set]
+        self.tgt_dev_sets = [params.dev_bpe_tgt.format(x) for x in self.bpe_set]
+        self.tgt_tst_sets = [params.tst_bpe_tgt.format(x) for x in self.bpe_set]
         self.bpe_step = 0
         self.bpe_inc  = 10000
         self.src_lang = params.src_lang

@@ -10,6 +10,7 @@ pair = "en-" + tgt_lang
 #--------------------------------------------------------
 fixed_seeds=True
 batch_size = 60
+max_num_sents = 1000000
 max_sent_length = 50  #paper: 50 for baseline, 100 for morphgen
 max_gen_length  = 100 #100 for baseline, 200 for morphgen to be safe
 num_epochs = 30
@@ -50,6 +51,9 @@ plot_every  = 50
 model_every = 1  #not used w/early stopping
 checkpoint_every = 50000  #for intermediate dev loss/output. set high enough to not happen
 patience = 10
+
+src_vocab = '{}src-vocab_{}_maxnum{}_maxlen{}.pkl'.format(MODEL_PATH, pair, max_num_sents, max_sent_length)
+tgt_vocab = '{}tgt-vocab_{}_maxnum{}_maxlen{}.pkl'.format(MODEL_PATH, pair, max_num_sents, max_sent_length)
 
 #--------------------------------------------------------
 # incremental bpe settings (overwritten if debug arg passed to main)

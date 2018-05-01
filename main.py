@@ -36,20 +36,17 @@ def main(args):
             torch.cuda.manual_seed(69)
         random.seed(69)
     
-    params.max_num_sents = int(args.maxnumsents)
-
     # Read in or create vocabs
-    if args.srcvocab is not None and args.tgtvocab is not None:
+    if args.srcvocab is not None:
         src_vocab = pickle.load(open(args.srcvocab, 'rb'))
+    else:
+        src_vocab = create_vocab(params.train_src, params.src_lang, params.max_num_sents, params.max_sent_length, max_vocab_size=100000)
+        src_vocab.save(params.src_vocab + ".pkl")
+    if args.tgtvocab is not None:
         tgt_vocab = pickle.load(open(args.tgtvocab, 'rb'))
     else:
-        src_vocab, tgt_vocab = create_vocab(params.train_src, params.train_tgt, params.src_lang, params.tgt_lang,
-                                            params.max_num_sents, params.max_sent_length, max_vocab_size=50000)
-        
-        src_vocab.save(params.MODEL_PATH + "src-vocab_" + params.pair + "_maxnum" + str(params.max_num_sents) +
-                       "_maxlen" + str(params.max_sent_length) + ".pkl")
-        tgt_vocab.save(params.MODEL_PATH + "tgt-vocab_" + params.pair + "_maxnum" + str(params.max_num_sents) +
-                       "_maxlen" + str(params.max_sent_length) + ".pkl")
+        tgt_vocab = create_vocab(params.train_tgt, params.tgt_lang, params.max_num_sents, params.max_sent_length, max_vocab_size=100000)
+        tgt_vocab.save(params.tgt_vocab + ".pkl")
 
     bpe_incrementer = None
     if params.use_incremental_bpe:
@@ -112,7 +109,6 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--model", default=None)
     parser.add_argument("-s", "--srcvocab", default=None)
     parser.add_argument("-t", "--tgtvocab", default=None)
-    parser.add_argument("-n", "--maxnumsents", default=250000)  #defaults to high enough for all
     parser.add_argument("-c", "--config", default="params.py")
     args = parser.parse_args()
     main(args)
