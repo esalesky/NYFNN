@@ -44,7 +44,7 @@ code_paths    = inc_bpe_dir + '/{}/' + tgt_lang + '_codes.{}'
 # data settings (overwritten if debug arg passed to main)
 #--------------------------------------------------------
 src_dir = "bped"
-tgt_dir = "bpe_tune/10k"
+tgt_dir = "bpe_tune/20k"
 src_suffix = ".tok.bpe"
 tgt_suffix = ".tok.bpe"
 
@@ -59,8 +59,8 @@ tst_tgt   = 'data/{}/{}/IWSLT16.TED.tst2013.{}.{}{}'.format(pair, tgt_dir, pair,
 #--------------------------------------------------------
 # output settings
 #--------------------------------------------------------
-OUTPUT_PATH = 'output-inc/'
-MODEL_PATH  = 'models-inc/'
+OUTPUT_PATH = 'output-shuff/'
+MODEL_PATH  = 'models-shuff/'
 print_every = 50
 plot_every  = 50
 model_every = 1  #not used w/early stopping

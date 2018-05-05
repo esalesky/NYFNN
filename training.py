@@ -142,6 +142,11 @@ class MTTrainer:
 
             # optional: shuffle batches at threshold for incremental bpe
             if self.bpe_incrementer and self.bpe_incrementer.test_increment(avg_dev_loss):
+                self.bpe_incrementer.current_burn_in = self.bpe_incrementer.burn_in
+                self.bpe_incrementer.elapsed_patience = 0
+                self.bpe_incrementer.lowest_loss = float('inf')
+                self.bpe_incrementer.bpe_step += 1
+                
                 batches = make_batches(train_sents, self.batch_size)
                 dev_batches = make_batches(dev_sents_sorted, self.batch_size)
                 num_batches = len(batches)
