@@ -140,13 +140,8 @@ class MTTrainer:
             avg_tst_loss, total_tst_loss = self.generate(tst_sents, src_vocab, tgt_vocab, max_gen_length, tst_output_file, output_path)
             self.monitor.finish_epoch(ep, 'test', avg_tst_loss, total_tst_loss)
 
-            # todo: check threshold for incremental bpe
+            # optional: shuffle batches at threshold for incremental bpe
             if self.bpe_incrementer and self.bpe_incrementer.test_increment(avg_dev_loss):
-                next_loaded = self.bpe_incrementer.update_bpe_vocab(self.model, self.optimizer, tgt_vocab)
-                if not next_loaded:
-                    break
-                train_sents, dev_sents_sorted, dev_sents_unsorted, tst_sents = self.bpe_incrementer\
-                    .load_next_bpe(src_vocab, tgt_vocab)
                 batches = make_batches(train_sents, self.batch_size)
                 dev_batches = make_batches(dev_sents_sorted, self.batch_size)
                 num_batches = len(batches)

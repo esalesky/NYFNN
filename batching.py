@@ -2,6 +2,7 @@
 from collections import Counter
 import numpy as np
 import itertools
+import random
 
 # Local imports
 from preprocessing import input_reader, EOS
@@ -10,11 +11,12 @@ from preprocessing import input_reader, EOS
 def make_batches(sent_pairs, batch_size=64):
     """Make batches for the given sentences.
 
-    Assumes they are presorted by source sentence length, and then
-    target sentence length.
-    All batches have source sentences of the same length.
+    All batches have source sentences of the same length. (still true)
     Target sentences are padded with EOS symbol.
     """
+    random.shuffle(sent_pairs) #randomly shuffle sent pairs
+    sent_pairs = sorted(sent_pairs, key=lambda x: x[0]) #and then only sort by src, not tgt
+    
     batch_idxs = get_batch_idxs(sent_pairs, batch_size)
 
     batches = []
