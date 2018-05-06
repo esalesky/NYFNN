@@ -15,7 +15,7 @@ def make_batches(sent_pairs, batch_size=64):
     Target sentences are padded with EOS symbol.
     """
     random.shuffle(sent_pairs) #randomly shuffle sent pairs
-    sent_pairs = sorted(sent_pairs, key=lambda x: x[0]) #and then only sort by src, not tgt
+    sent_pairs = sorted(sent_pairs, key=lambda x: len(x[0])) #and then only sort by src, not tgt
     
     batch_idxs = get_batch_idxs(sent_pairs, batch_size)
 
