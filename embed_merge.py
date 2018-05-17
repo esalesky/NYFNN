@@ -233,7 +233,7 @@ class AutoencoderEmbeddingMerger(EmbeddingMerger):
         self.trained = True
 
     def _idx_to_embed(self, indexes, embedding):
-        if indexes[0] > embedding.weight.shape[0] or indexes[1] > embedding.weight.shape[0]:
+        if indexes[0] >= embedding.weight.shape[0] or indexes[1] >= embedding.weight.shape[0]:
             return None
         return torch.cat((embedding.weight[indexes[0]], embedding.weight[indexes[1]]), 0).view(-1).data.cpu().numpy()
 
