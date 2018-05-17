@@ -22,6 +22,8 @@ def get_merger(merge_type, **kwargs):
         return MaxEmbeddingMerger(**kwargs)
     elif merge_type == 'ae':
         return AutoencoderEmbeddingMerger(**kwargs)
+    elif merge_type == 'rand':
+        return RandomEmbeddingMerger(**kwargs)
     else:
         logger.error("Unknown merger type: {}".format(merge_type))
         raise Exception
@@ -128,6 +130,23 @@ class MaxEmbeddingMerger(EmbeddingMerger):
             embedding.num_embeddings += 1
             new_embedding = torch.max(embedding.weight[idx], embedding.weight[idy]).view(1, -1)
             embedding.weight = Parameter(torch.cat((embedding.weight[:].data, new_embedding.data), 0))
+            self.update_linear(linear, idx, idy, operation="avg")
+
+
+class RandomEmbeddingMerger(EmbeddingMerger):
+
+    def __init__(self, **kwargs):
+        super(RandomEmbeddingMerger, self).__init__()
+
+    def generate_embeddings(self, embedding_indices, layers):
+        # add one to num embeddings
+        embedding = layers['embed']
+        linear = layers['out']
+        for (idx, idy) in embedding_indices:
+            self.check_indexes(idx, idy, embedding.weight.shape[0])
+            embedding.num_embeddings += 1
+            new_embedding = torch.rand(1,len(embedding.weight[idx]))
+            embedding.weight = Parameter(torch.cat((embedding.weight[:].data, new_embedding), 0))
             self.update_linear(linear, idx, idy, operation="avg")
 
 

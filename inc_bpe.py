@@ -85,7 +85,7 @@ class BPEIncrementer:
 
     def update_bpe_vocab(self, model, optimizer, tgt_vocab):
         # add one to current_bpe_step
-        logger.info("Vocab size: {}, Embeding size: {}, Output size: {}"
+        logger.info("Vocab size: {}, Embedding size: {}, Output size: {}"
             .format(tgt_vocab.vocab_size(), model.decoder.embed.weight.shape[0], model.decoder.out.weight.shape[0]))
         self.bpe_step += 1
         if self.bpe_step >= len(self.tgt_train_sets):

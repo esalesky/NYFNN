@@ -27,9 +27,9 @@ if bi_enc:
 #--------------------------------------------------------
 # data settings (overwritten if debug arg passed to main)
 #--------------------------------------------------------
+tag = "10k"
 src_dir = "wmt/words"
-tgt_dir = "wmt/10k"
-tag = "words"
+tgt_dir = "wmt/{}".format(tag)
 suffix = ".bpe"
 
 train_src = 'data/{}/{}/train.{}'.format(pair, src_dir, src_lang)
@@ -38,6 +38,9 @@ dev_src   = 'data/{}/{}/newstest2013.{}'.format(pair, src_dir, src_lang)
 dev_tgt   = 'data/{}/{}/newstest2013.{}{}'.format(pair, tgt_dir, tgt_lang, suffix)
 tst_src   = 'data/{}/{}/newstest2014.{}'.format(pair, src_dir, src_lang)
 tst_tgt   = 'data/{}/{}/newstest2014.{}{}'.format(pair, tgt_dir, tgt_lang, suffix)
+
+src_vocab = '{}/src-vocab-init-inc{}.pkl'.format(MODEL_PATH, tag)
+tgt_vocab = '{}/tgt-vocab-init-inc{}.pkl'.format(MODEL_PATH, tag)
 
 #--------------------------------------------------------
 # incremental bpe settings (overwritten if debug arg passed to main)
@@ -57,13 +60,10 @@ code_paths    = inc_bpe_dir + '/{}/' + tgt_lang + '_codes.{}'
 #--------------------------------------------------------
 # output settings
 #--------------------------------------------------------
-OUTPUT_PATH = 'output-inc-de/'
-MODEL_PATH  = 'models-inc-de/'
+OUTPUT_PATH = 'output-inc-de/{}'.format(embed_merge)
+MODEL_PATH  = 'models-inc-de/{}'.format(embed_merge)
 print_every = 50
 plot_every  = 50
 model_every = 1  #not used w/early stopping
 checkpoint_every = 50000  #for intermediate dev loss/output. set high enough to not happen
-patience = 10
-src_vocab = '{}src-vocab_{}_maxnum{}_maxlen{}.pkl'.format(MODEL_PATH, pair, max_num_sents, max_sent_length)
-tgt_vocab = '{}tgt-vocab_{}_maxnum{}_maxlen{}.pkl'.format(MODEL_PATH, pair, max_num_sents, max_sent_length)
-
+patience = 50
