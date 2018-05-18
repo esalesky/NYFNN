@@ -145,8 +145,9 @@ class RandomEmbeddingMerger(EmbeddingMerger):
         for (idx, idy) in embedding_indices:
             self.check_indexes(idx, idy, embedding.weight.shape[0])
             embedding.num_embeddings += 1
-            new_embedding = torch.rand(1,len(embedding.weight[idx]))
-            embedding.weight = Parameter(torch.cat((embedding.weight[:].data, new_embedding), 0))
+            # new embedding is random of same size as embed[idx]
+            new_embedding = Variable(torch.rand(1,len(embedding.weight[idx]))).view(1,-1)
+            embedding.weight = Parameter(torch.cat((embedding.weight[:].data, new_embedding.data), 0))
             self.update_linear(linear, idx, idy, operation="avg")
 
 
