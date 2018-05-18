@@ -3,6 +3,7 @@ from utils import time_elapsed, perplexity, save_plot
 
 import logging
 import time
+import pickle
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +138,12 @@ class PlotCallback(TrainCallback):
         return "continue"
 
     def finish_training(self):
-        # Shouldn't need to do anything at this point, since graphs have fixed intervals for plotting
-        pass
+        # pickle dump plot data
+        pkl_path = self.loss_file.split('/')[0] + '/loss_plot_data.pkl'
+        with open(pkl_path, 'wb') as f:
+            pickle.dump(self.plot_losses, f)
+        return
+
 
 
 
@@ -180,6 +185,7 @@ class SaveModelCallback(TrainCallback):
             model_name = "model_final_{}".format(t)
         else:
             model_name = "model_e{0}_loss{1:.3f}".format(epoch, avg_loss)
+###        logger.info("SKIPPING MODEL SAVE")
         self.model.save("{}{}.model".format(self.model_path, model_name))
         #else:
         #    self.epochs_elapsed += 1
