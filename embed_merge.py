@@ -147,6 +147,8 @@ class RandomEmbeddingMerger(EmbeddingMerger):
             embedding.num_embeddings += 1
             # new embedding is random of same size as embed[idx]
             new_embedding = Variable(torch.rand(1,len(embedding.weight[idx]))).view(1,-1)
+            if use_cuda:
+                new_embedding = new_embedding.cuda()            
             embedding.weight = Parameter(torch.cat((embedding.weight[:].data, new_embedding.data), 0))
             self.update_linear(linear, idx, idy, operation="avg")
 
